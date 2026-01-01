@@ -1,0 +1,72 @@
+package dev.detekt.api
+
+import kotlin.reflect.KClass
+
+/**
+ * A configuration holds information about how to configure specific rules.
+ */
+interface Config {
+    /**
+     * The reference to a parent [Config] from this configuration, useful when navigating with [subConfig].
+     * It's `null` if this is the top most configuration object.
+     */
+    val parent: Config?
+
+    /**
+     * Tries to retrieve part of the configuration based on given key.
+     */
+    fun subConfig(key: String): Config
+
+    /**
+     * Returns a set of all sub configuration keys.
+     */
+    fun subConfigKeys(): Set<String>
+
+    /**
+     * Retrieves a sub configuration or value based on given key.
+     * If the configuration property cannot be found, null is returned.
+     */
+    fun <T : Any> valueOrNull(key: String, type: KClass<T>): T?
+
+    companion object {
+
+        /**
+         * An empty configuration with no properties.
+         * This config should only be used in test cases.
+         * Always returns the default value except when 'active' is queried, it returns true.
+         */
+        val empty: Config = object : Config {
+            override val parent: Config = this
+
+            override fun subConfig(key: String): Config = this
+
+            override fun subConfigKeys(): Set<String> = emptySet()
+
+            override fun <T : Any> valueOrNull(key: String, type: KClass<T>): T? = null
+
+            override fun toString(): String = "Config.empty"
+        }
+
+        const val ACTIVE_KEY: String = "active"
+        const val ALIASES_KEY: String = "aliases"
+        const val AUTO_CORRECT_KEY: String = "autoCorrect"
+        const val IGNORE_ANNOTATED_KEY: String = "ignoreAnnotated"
+        const val SEVERITY_KEY: String = "severity"
+        const val EXCLUDES_KEY: String = "excludes"
+        const val INCLUDES_KEY: String = "includes"
+    }
+}
+
+/**
+ * Retrieves a sub configuration or value based on given key.
+ *
+ * If configuration property cannot be found the specified default value is returned.
+ */
+inline fun <reified T : Any> Config.valueOrDefault(key: String, default: T): T = valueOrNull(key, T::class) ?: default
+
+/**
+ * Retrieves a sub configuration or value based on given key.
+ *
+ * If the configuration property cannot be found, null is returned.
+ */
+inline fun <reified T : Any> Config.valueOrNull(key: String): T? = valueOrNull(key, T::class)

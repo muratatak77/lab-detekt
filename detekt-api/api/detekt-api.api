@@ -1,0 +1,345 @@
+public abstract interface annotation class dev/detekt/api/ActiveByDefault : java/lang/annotation/Annotation {
+	public abstract fun since ()Ljava/lang/String;
+}
+
+public abstract interface annotation class dev/detekt/api/Alias : java/lang/annotation/Annotation {
+	public abstract fun values ()[Ljava/lang/String;
+}
+
+public abstract interface class dev/detekt/api/AutoCorrectable {
+}
+
+public final class dev/detekt/api/AutocorrectKt {
+	public static final fun getModifiedText (Lorg/jetbrains/kotlin/psi/KtFile;)Ljava/lang/String;
+	public static final fun setModifiedText (Lorg/jetbrains/kotlin/psi/KtFile;Ljava/lang/String;)V
+}
+
+public abstract interface class dev/detekt/api/Config {
+	public static final field ACTIVE_KEY Ljava/lang/String;
+	public static final field ALIASES_KEY Ljava/lang/String;
+	public static final field AUTO_CORRECT_KEY Ljava/lang/String;
+	public static final field Companion Ldev/detekt/api/Config$Companion;
+	public static final field EXCLUDES_KEY Ljava/lang/String;
+	public static final field IGNORE_ANNOTATED_KEY Ljava/lang/String;
+	public static final field INCLUDES_KEY Ljava/lang/String;
+	public static final field SEVERITY_KEY Ljava/lang/String;
+	public abstract fun getParent ()Ldev/detekt/api/Config;
+	public abstract fun subConfig (Ljava/lang/String;)Ldev/detekt/api/Config;
+	public abstract fun subConfigKeys ()Ljava/util/Set;
+	public abstract fun valueOrNull (Ljava/lang/String;Lkotlin/reflect/KClass;)Ljava/lang/Object;
+}
+
+public final class dev/detekt/api/Config$Companion {
+	public static final field ACTIVE_KEY Ljava/lang/String;
+	public static final field ALIASES_KEY Ljava/lang/String;
+	public static final field AUTO_CORRECT_KEY Ljava/lang/String;
+	public static final field EXCLUDES_KEY Ljava/lang/String;
+	public static final field IGNORE_ANNOTATED_KEY Ljava/lang/String;
+	public static final field INCLUDES_KEY Ljava/lang/String;
+	public static final field SEVERITY_KEY Ljava/lang/String;
+	public final fun getEmpty ()Ldev/detekt/api/Config;
+}
+
+public final class dev/detekt/api/ConfigPropertyKt {
+	public static final fun config (Ljava/lang/Object;)Lkotlin/properties/ReadOnlyProperty;
+	public static final fun config (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Lkotlin/properties/ReadOnlyProperty;
+	public static final fun configWithFallback (Lkotlin/reflect/KProperty0;Ljava/lang/Object;)Lkotlin/properties/ReadOnlyProperty;
+	public static final fun configWithFallback (Lkotlin/reflect/KProperty0;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Lkotlin/properties/ReadOnlyProperty;
+}
+
+public abstract interface class dev/detekt/api/ConfigValidator : dev/detekt/api/Extension {
+	public abstract fun validate (Ldev/detekt/api/Config;)Ljava/util/Collection;
+}
+
+public abstract interface annotation class dev/detekt/api/Configuration : java/lang/annotation/Annotation {
+	public abstract fun description ()Ljava/lang/String;
+}
+
+public abstract interface class dev/detekt/api/ConsoleReport : dev/detekt/api/Extension {
+	public abstract fun render (Ldev/detekt/api/Detektion;)Ljava/lang/String;
+}
+
+public class dev/detekt/api/DetektVisitor : org/jetbrains/kotlin/psi/KtTreeVisitorVoid {
+	public fun <init> ()V
+}
+
+public final class dev/detekt/api/Detektion {
+	public fun <init> (Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getIssues ()Ljava/util/List;
+	public final fun getMetrics ()Ljava/util/List;
+	public final fun getNotifications ()Ljava/util/List;
+	public final fun getRules ()Ljava/util/List;
+	public final fun getUserData ()Ljava/util/Map;
+	public final fun plus (Ldev/detekt/api/Notification;)Ldev/detekt/api/Detektion;
+	public final fun plus (Ldev/detekt/api/ProjectMetric;)Ldev/detekt/api/Detektion;
+	public final fun plus (Lkotlin/Pair;)Ldev/detekt/api/Detektion;
+}
+
+public final class dev/detekt/api/Entity {
+	public static final field Companion Ldev/detekt/api/Entity$Companion;
+	public fun <init> (Ljava/lang/String;Ldev/detekt/api/Location;Lorg/jetbrains/kotlin/psi/KtElement;)V
+	public final fun getKtElement ()Lorg/jetbrains/kotlin/psi/KtElement;
+	public final fun getLocation ()Ldev/detekt/api/Location;
+	public final fun getSignature ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/Entity$Companion {
+	public final fun atName (Lorg/jetbrains/kotlin/psi/KtNamedDeclaration;)Ldev/detekt/api/Entity;
+	public final fun atPackageOrFirstDecl (Lorg/jetbrains/kotlin/psi/KtFile;)Ldev/detekt/api/Entity;
+	public final fun from (Lcom/intellij/psi/PsiElement;I)Ldev/detekt/api/Entity;
+	public final fun from (Lcom/intellij/psi/PsiElement;Lcom/intellij/psi/PsiElement;)Ldev/detekt/api/Entity;
+	public final fun from (Lcom/intellij/psi/PsiElement;Ldev/detekt/api/Location;)Ldev/detekt/api/Entity;
+	public static synthetic fun from$default (Ldev/detekt/api/Entity$Companion;Lcom/intellij/psi/PsiElement;IILjava/lang/Object;)Ldev/detekt/api/Entity;
+}
+
+public abstract interface class dev/detekt/api/Extension {
+	public abstract fun getId ()Ljava/lang/String;
+	public fun getPriority ()I
+	public fun init (Ldev/detekt/api/SetupContext;)V
+}
+
+public abstract interface class dev/detekt/api/FileProcessListener : dev/detekt/api/Extension {
+	public fun onFinish (Ljava/util/List;Ldev/detekt/api/Detektion;)Ldev/detekt/api/Detektion;
+	public fun onProcess (Lorg/jetbrains/kotlin/psi/KtFile;)V
+	public fun onProcessComplete (Lorg/jetbrains/kotlin/psi/KtFile;Ljava/util/List;)V
+	public fun onStart (Ljava/util/List;)V
+}
+
+public final class dev/detekt/api/Finding {
+	public fun <init> (Ldev/detekt/api/Entity;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ldev/detekt/api/Entity;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getEntity ()Ldev/detekt/api/Entity;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getReferences ()Ljava/util/List;
+	public final fun getSuppressReasons ()Ljava/util/List;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/Issue {
+	public fun <init> (Ldev/detekt/api/RuleInstance;Ldev/detekt/api/Issue$Entity;Ljava/util/List;Ljava/lang/String;Ldev/detekt/api/Severity;Ljava/util/List;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntity ()Ldev/detekt/api/Issue$Entity;
+	public final fun getLocation ()Ldev/detekt/api/Issue$Location;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getReferences ()Ljava/util/List;
+	public final fun getRuleInstance ()Ldev/detekt/api/RuleInstance;
+	public final fun getSeverity ()Ldev/detekt/api/Severity;
+	public final fun getSuppressReasons ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/Issue$Entity {
+	public fun <init> (Ljava/lang/String;Ldev/detekt/api/Issue$Location;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLocation ()Ldev/detekt/api/Issue$Location;
+	public final fun getSignature ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/Issue$Location : java/lang/Comparable {
+	public fun <init> (Ldev/detekt/api/SourceLocation;Ldev/detekt/api/SourceLocation;Ldev/detekt/api/TextLocation;Ljava/nio/file/Path;)V
+	public fun compareTo (Ldev/detekt/api/Issue$Location;)I
+	public synthetic fun compareTo (Ljava/lang/Object;)I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEndSource ()Ldev/detekt/api/SourceLocation;
+	public final fun getPath ()Ljava/nio/file/Path;
+	public final fun getSource ()Ldev/detekt/api/SourceLocation;
+	public final fun getText ()Ldev/detekt/api/TextLocation;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/IssueKt {
+	public static final fun getSuppressed (Ldev/detekt/api/Issue;)Z
+}
+
+public final class dev/detekt/api/Location {
+	public static final field Companion Ldev/detekt/api/Location$Companion;
+	public fun <init> (Ldev/detekt/api/SourceLocation;Ldev/detekt/api/SourceLocation;Ldev/detekt/api/TextLocation;Ljava/nio/file/Path;)V
+	public final fun getEndSource ()Ldev/detekt/api/SourceLocation;
+	public final fun getPath ()Ljava/nio/file/Path;
+	public final fun getSource ()Ldev/detekt/api/SourceLocation;
+	public final fun getText ()Ldev/detekt/api/TextLocation;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/Location$Companion {
+	public final fun from (Lcom/intellij/psi/PsiElement;I)Ldev/detekt/api/Location;
+	public static synthetic fun from$default (Ldev/detekt/api/Location$Companion;Lcom/intellij/psi/PsiElement;IILjava/lang/Object;)Ldev/detekt/api/Location;
+}
+
+public final class dev/detekt/api/Notification {
+	public fun <init> (Ljava/lang/String;Ldev/detekt/api/Notification$Level;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLevel ()Ldev/detekt/api/Notification$Level;
+	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/Notification$Level : java/lang/Enum {
+	public static final field Error Ldev/detekt/api/Notification$Level;
+	public static final field Info Ldev/detekt/api/Notification$Level;
+	public static final field Warning Ldev/detekt/api/Notification$Level;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Ldev/detekt/api/Notification$Level;
+	public static fun values ()[Ldev/detekt/api/Notification$Level;
+}
+
+public abstract interface class dev/detekt/api/OutputReport : dev/detekt/api/Extension {
+	public abstract fun render (Ldev/detekt/api/Detektion;)Ljava/lang/String;
+}
+
+public class dev/detekt/api/ProjectMetric {
+	public fun <init> (Ljava/lang/String;IIZI)V
+	public synthetic fun <init> (Ljava/lang/String;IIZIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConversionFactor ()I
+	public final fun getPriority ()I
+	public final fun getType ()Ljava/lang/String;
+	public final fun getValue ()I
+	public fun hashCode ()I
+	public final fun isDouble ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class dev/detekt/api/PropertiesAware {
+	public abstract fun getProperties ()Ljava/util/Map;
+	public abstract fun register (Ljava/lang/String;Ljava/lang/Object;)V
+}
+
+public abstract interface class dev/detekt/api/ReportingExtension : dev/detekt/api/Extension {
+	public fun onFinalResult (Ldev/detekt/api/Detektion;)V
+	public fun onRawResult (Ldev/detekt/api/Detektion;)V
+	public fun transformIssues (Ljava/util/List;)Ljava/util/List;
+}
+
+public abstract interface class dev/detekt/api/RequiresAnalysisApi {
+}
+
+public class dev/detekt/api/Rule : dev/detekt/api/DetektVisitor {
+	protected field languageVersionSettings Lorg/jetbrains/kotlin/config/LanguageVersionSettings;
+	public fun <init> (Ldev/detekt/api/Config;Ljava/lang/String;Ljava/net/URI;)V
+	public synthetic fun <init> (Ldev/detekt/api/Config;Ljava/lang/String;Ljava/net/URI;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAutoCorrect ()Z
+	public final fun getConfig ()Ldev/detekt/api/Config;
+	public final fun getDescription ()Ljava/lang/String;
+	protected final fun getLanguageVersionSettings ()Lorg/jetbrains/kotlin/config/LanguageVersionSettings;
+	public fun getRuleName ()Ldev/detekt/api/RuleName;
+	public final fun getUrl ()Ljava/net/URI;
+	protected fun postVisit (Lorg/jetbrains/kotlin/psi/KtFile;)V
+	protected fun preVisit (Lorg/jetbrains/kotlin/psi/KtFile;)V
+	public final fun report (Ldev/detekt/api/Finding;)V
+	protected final fun setLanguageVersionSettings (Lorg/jetbrains/kotlin/config/LanguageVersionSettings;)V
+	public fun visit (Lorg/jetbrains/kotlin/psi/KtFile;)V
+	public final fun visitFile (Lorg/jetbrains/kotlin/psi/KtFile;Lorg/jetbrains/kotlin/config/LanguageVersionSettings;)Ljava/util/List;
+}
+
+public final class dev/detekt/api/RuleInstance {
+	public fun <init> (Ljava/lang/String;Ldev/detekt/api/RuleSetId;Ljava/net/URI;Ljava/lang/String;Ldev/detekt/api/Severity;Z)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActive ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getRuleSetId ()Ldev/detekt/api/RuleSetId;
+	public final fun getSeverity ()Ldev/detekt/api/Severity;
+	public final fun getUrl ()Ljava/net/URI;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/RuleName {
+	public fun <init> (Ljava/lang/String;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/RuleSet {
+	public static final field Companion Ldev/detekt/api/RuleSet$Companion;
+	public fun <init> (Ldev/detekt/api/RuleSetId;Ljava/util/Map;)V
+	public final fun getId ()Ldev/detekt/api/RuleSetId;
+	public final fun getRules ()Ljava/util/Map;
+}
+
+public final class dev/detekt/api/RuleSet$Companion {
+	public final fun invoke (Ldev/detekt/api/RuleSetId;Ljava/util/List;)Ldev/detekt/api/RuleSet;
+}
+
+public final class dev/detekt/api/RuleSetId {
+	public fun <init> (Ljava/lang/String;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class dev/detekt/api/RuleSetProvider {
+	public abstract fun getRuleSetId ()Ldev/detekt/api/RuleSetId;
+	public abstract fun instance ()Ldev/detekt/api/RuleSet;
+}
+
+public abstract interface class dev/detekt/api/SetupContext : dev/detekt/api/PropertiesAware {
+	public abstract fun getBasePath ()Ljava/nio/file/Path;
+	public abstract fun getConfig ()Ldev/detekt/api/Config;
+	public abstract fun getConfigUris ()Ljava/util/Collection;
+	public abstract fun getErrorChannel ()Ljava/lang/Appendable;
+	public abstract fun getOutputChannel ()Ljava/lang/Appendable;
+}
+
+public final class dev/detekt/api/Severity : java/lang/Enum {
+	public static final field Error Ldev/detekt/api/Severity;
+	public static final field Info Ldev/detekt/api/Severity;
+	public static final field Warning Ldev/detekt/api/Severity;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Ldev/detekt/api/Severity;
+	public static fun values ()[Ldev/detekt/api/Severity;
+}
+
+public final class dev/detekt/api/SourceLocation : java/lang/Comparable {
+	public fun <init> (II)V
+	public fun compareTo (Ldev/detekt/api/SourceLocation;)I
+	public synthetic fun compareTo (Ljava/lang/Object;)I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColumn ()I
+	public final fun getLine ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/TextLocation {
+	public fun <init> (II)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnd ()I
+	public final fun getStart ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/ValueWithReason {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/ValuesWithReason : java/lang/Iterable, kotlin/jvm/internal/markers/KMappedMarker {
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun iterator ()Ljava/util/Iterator;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/ValuesWithReasonKt {
+	public static final fun valuesWithReason (Ljava/util/List;)Ldev/detekt/api/ValuesWithReason;
+	public static final fun valuesWithReason ([Lkotlin/Pair;)Ldev/detekt/api/ValuesWithReason;
+}
+

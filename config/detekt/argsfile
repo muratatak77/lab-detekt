@@ -1,0 +1,17 @@
+-i
+.
+-b
+./config/detekt/baseline.xml
+-ex
+**/resources/**,detekt*/build/**,build-logic/build/**,build-logic/bin/**
+--build-upon-default-config
+-c
+./config/detekt/detekt.yml
+-r
+html:./build/detekt-report.html
+-r
+checkstyle:./build/detekt-report.xml
+-r
+sarif:./build/detekt-report.sarif
+-bp
+.

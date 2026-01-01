@@ -1,0 +1,19 @@
+console-reports:
+  active: true
+  exclude:
+    - 'NotificationReport'
+    - 'IssuesReport'
+    - 'FileBasedIssuesReport'
+  #  - 'LiteIssuesReport'
+
+potential-bugs:
+  ExitOutsideMain:
+    active: true
+  UnnecessarySafeCall:
+    active: true
+
+style:
+  ForbiddenMethodCall:
+    active: true
+    methods:
+      - 'jvm.src.main.kotlin.Callee.forbiddenMethod'

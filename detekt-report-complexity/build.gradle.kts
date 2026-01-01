@@ -1,0 +1,15 @@
+plugins {
+    id("module")
+}
+
+dependencies {
+    compileOnly(projects.detektApi)
+    compileOnly(projects.detektMetrics)
+
+    testRuntimeOnly(projects.detektApi)
+    testRuntimeOnly(projects.detektMetrics)
+    testImplementation(projects.detektTest)
+    testImplementation(projects.detektTestUtils)
+    testImplementation(testFixtures(projects.detektApi))
+    testImplementation(libs.assertj.core)
+}

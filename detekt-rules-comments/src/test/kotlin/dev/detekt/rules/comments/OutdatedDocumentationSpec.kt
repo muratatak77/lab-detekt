@@ -1,0 +1,1092 @@
+package dev.detekt.rules.comments
+
+import dev.detekt.api.Config
+import dev.detekt.test.TestConfig
+import dev.detekt.test.assertj.assertThat
+import dev.detekt.test.lint
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+class OutdatedDocumentationSpec {
+    val subject = OutdatedDocumentation(Config.empty)
+
+    @Nested
+    inner class General {
+        @Test
+        fun `should not report when doc is missing`() {
+            val withoutDoc = """
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(subject.lint(withoutDoc)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when doc does not contain any property or param tags`() {
+            val docWithoutParamAndPropertyTags = """
+                /**
+                 * Some class description without referring to tags or properties
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(subject.lint(docWithoutParamAndPropertyTags)).isEmpty()
+        }
+    }
+
+    @Nested
+    inner class `class` {
+        @Test
+        fun `should not report when doc match class params`() {
+            val correctParam = """
+                /**
+                 * @param someParam Description of param
+                 */
+                class MyClass(someParam: String)
+            """.trimIndent()
+            assertThat(subject.lint(correctParam)).isEmpty()
+        }
+
+        @Test
+        fun `should report when doc mismatch class param name`() {
+            val incorrectParamName = """
+                /**
+                 * @param someParam Description of param
+                 */
+                class MyClass(otherParam: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectParamName))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@param someParam doesn't have corresponding public declaration.",
+                    "Documentation of otherParam is missing.",
+                )
+        }
+
+        @Test
+        fun `should report when doc mismatch class param list`() {
+            val incorrectListOfParams = """
+                /**
+                 * @param someParam Description of param
+                 * @param someSecondParam Description of param
+                 */
+                class MyClass(someParam: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectListOfParams)).singleElement()
+                .hasMessage("@param someSecondParam doesn't have corresponding public declaration.")
+        }
+
+        @Test
+        fun `should report when doc mismatch class param list order`() {
+            val incorrectParamOrder = """
+                /**
+                 * @param someParam Description of param
+                 * @param otherParam Description of param
+                 */
+                class MyClass(otherParam: String, someParam: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectParamOrder)).singleElement()
+                .hasMessage("Documentation elements order is mismatched with declaration.")
+        }
+
+        @Test
+        fun `should not report when doc match class params and props`() {
+            val correctParamAndProp = """
+                /**
+                 * @param someParam Description of param
+                 * @property someProp Description of property
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(subject.lint(correctParamAndProp)).isEmpty()
+        }
+
+        @Test
+        fun `should report when doc match class params but mismatch props`() {
+            val correctParamIncorrectProp = """
+                /**
+                 * @param someParam Description of param
+                 * @property someProp Description of property
+                 */
+                class MyClass(someParam: String, val otherProp: String)
+            """.trimIndent()
+            assertThat(subject.lint(correctParamIncorrectProp))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@property someProp doesn't have corresponding public declaration.",
+                    "Documentation of otherProp is missing.",
+                )
+        }
+
+        @Test
+        fun `should report when doc mismatch class params and match props`() {
+            val incorrectParamCorrectProp = """
+                /**
+                 * @param someParam Description of param
+                 * @property someProp Description of property
+                 */
+                class MyClass(otherParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectParamCorrectProp))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@param someParam doesn't have corresponding public declaration.",
+                    "Documentation of otherParam is missing.",
+                )
+        }
+
+        @Test
+        fun `should report when doc for constructor is incorrect`() {
+            val incorrectConstructorDoc = """
+                class MyClass {
+                    /**
+                     * @param someParam
+                     */
+                    constructor(otherParam: String)
+                }
+            """.trimIndent()
+            assertThat(subject.lint(incorrectConstructorDoc))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@param someParam doesn't have corresponding public declaration.",
+                    "Documentation of otherParam is missing.",
+                )
+        }
+
+        @Test
+        fun `should not report when doc match constructor params`() {
+            val correctConstructorDoc = """
+                class MyClass {
+                    /**
+                     * @param someParam
+                     */
+                    constructor(someParam: String)
+                }
+            """.trimIndent()
+            assertThat(subject.lint(correctConstructorDoc)).isEmpty()
+        }
+
+        @Test
+        fun `should report when property is documented as param`() {
+            val propertyAsParam = """
+                /**
+                 * @property someParam Description of param
+                 * @param someProp Description of property
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(subject.lint(propertyAsParam))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@property someParam type doesn't match corresponding declaration of type param.",
+                    "@param someProp type doesn't match corresponding declaration of type property.",
+                )
+        }
+
+        @Test
+        fun `should report when declarations order is incorrect`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * @property someProp Description of property
+                 * @param someParam Description of param
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectDeclarationsOrder)).singleElement()
+                .hasMessage("Documentation elements order is mismatched with declaration.")
+        }
+
+        @Test
+        fun `should not report when only public property is documented in internal constructor`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * Doc
+                 * @property b desc
+                 */
+                class A internal constructor(val b: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectDeclarationsOrder)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when only property is documented and param is undocumented in internal constructor`() {
+            val code = """
+                /**
+                 * Doc
+                 * @property b desc
+                 */
+                class A internal constructor(a: String, val b: String)
+            """.trimIndent()
+            assertThat(subject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when only public property is documented in internal constructor with param`() {
+            val onlyPropertyDocumented = """
+                /**
+                 * Doc
+                 * @property b desc
+                 */
+                class A internal constructor(val b: String, c: String)
+            """.trimIndent()
+            assertThat(subject.lint(onlyPropertyDocumented)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when only public property and type is documented in internal constructor with param`() {
+            val propertyAndTypeDocumented = """
+                /**
+                 * Doc
+                 * @param T desc
+                 * @property b desc
+                 */
+                class A<T> internal constructor(val b: String, c: String)
+            """.trimIndent()
+            assertThat(subject.lint(propertyAndTypeDocumented)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when only public property is documented in private constructor`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * Doc
+                 * @property b desc
+                 */
+                class A private constructor(val b: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectDeclarationsOrder)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when only public param is documented`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * Doc
+                 * @param b desc
+                 */
+                class A internal constructor(val b: String)
+            """.trimIndent()
+            assertThat(
+                OutdatedDocumentation(
+                    TestConfig("allowParamOnConstructorProperties" to true)
+                ).lint(incorrectDeclarationsOrder)
+            ).isEmpty()
+        }
+
+        @Test
+        fun `should report when all public property is not documented`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * Doc
+                 * @property a desc
+                 */
+                class A internal constructor(val a: String, val b: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectDeclarationsOrder)).singleElement()
+                .hasMessage("Documentation of b is missing.")
+        }
+
+        @Test
+        fun `should report when all public property doc mismatch class property list order`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * Doc
+                 * @property b desc
+                 * @property a desc
+                 */
+                class A internal constructor(val a: String, val b: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectDeclarationsOrder)).singleElement()
+                .hasMessage("Documentation elements order is mismatched with declaration.")
+        }
+
+        @Test
+        fun `should report when only public property and param is documented with missing param`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * Doc
+                 * @property a desc
+                 * @param b desc
+                 */
+                class A internal constructor(
+                    val a: String,
+                    b: Int,
+                    c: Int,
+                )
+            """.trimIndent()
+            assertThat(subject.lint(incorrectDeclarationsOrder)).singleElement()
+                .hasMessage("@param b doesn't have corresponding public declaration.")
+        }
+
+        @Test
+        fun `should report when only param is not documented for non internal or private constructor`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * Doc
+                 * @property a desc
+                 */
+                class A(
+                    val a: String,
+                    b: Int,
+                    c: Int,
+                )
+            """.trimIndent()
+            assertThat(subject.lint(incorrectDeclarationsOrder))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "Documentation of b is missing.",
+                    "Documentation of c is missing.",
+                )
+        }
+
+        @Test
+        fun `should report when param which is private property is documented as property`() {
+            val code = """
+                /**
+                 * Doc
+                 * @property a desc
+                 */
+                class A(
+                    private val a: String,
+                )
+            """.trimIndent()
+            assertThat(subject.lint(code)).singleElement()
+                .hasMessage("@property a type doesn't match corresponding declaration of type param.")
+        }
+
+        @Test
+        fun `should not report internal or protected property is documented`() {
+            val code = """
+                /**
+                 * Doc
+                 * @property a desc
+                 * @property b desc
+                 */
+                open class A(
+                    internal val a: String,
+                    protected val b: String,
+                )
+            """.trimIndent()
+            assertThat(subject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when param which is private property is documented as param`() {
+            val code = """
+                /**
+                 * Doc
+                 * @param a desc
+                 */
+                class A(
+                    private val a: String,
+                )
+            """.trimIndent()
+            assertThat(subject.lint(code)).isEmpty()
+        }
+    }
+
+    @Nested
+    inner class `class with type params` {
+
+        @Test
+        fun `should not report when doc match class params`() {
+            val correctTypeParam = """
+                /**
+                 * @param T Description of type param
+                 * @param someParam Description of param
+                 */
+                class MyClass<T>(someParam: String)
+            """.trimIndent()
+            assertThat(subject.lint(correctTypeParam)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when doc match class params and no primary constructor`() {
+            val correctTypeParam = """
+                /**
+                 * Some description
+                 * @param T Description of type param
+                 */
+                class MyClass<T>
+            """.trimIndent()
+            assertThat(subject.lint(correctTypeParam)).isEmpty()
+        }
+
+        @Test
+        fun `should report when doc misses type param`() {
+            val missingTypeParam = """
+                /**
+                 * @param someParam Description of param
+                 */
+                class MyClass<T>(someParam: String)
+            """.trimIndent()
+            assertThat(subject.lint(missingTypeParam)).singleElement()
+                .hasMessage("Documentation of T is missing.")
+        }
+
+        @Test
+        fun `should report when doc mismatch type param name`() {
+            val incorrectTypeParamName = """
+                /**
+                 * @param S Description of type param
+                 * @param someParam Description of param
+                 */
+                class MyClass<T>(someParam: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectTypeParamName))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@param S doesn't have corresponding public declaration.",
+                    "Documentation of T is missing.",
+                )
+        }
+
+        @Test
+        fun `should report when doc mismatch type param list`() {
+            val incorrectTypeParamList = """
+                /**
+                 * @param T Description of type param
+                 * @param someParam Description of param
+                 */
+                class MyClass<T, S>(someParam: String)
+            """.trimIndent()
+            assertThat(subject.lint(incorrectTypeParamList)).singleElement()
+                .hasMessage("Documentation of S is missing.")
+        }
+    }
+
+    @Nested
+    inner class Function {
+
+        @Test
+        fun `should not report when doc match function params`() {
+            val correctDoc = """
+                /**
+                 * @param someParam Description of param
+                 */
+                fun myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(subject.lint(correctDoc)).isEmpty()
+        }
+
+        @Test
+        fun `should report when doc mismatch function param name`() {
+            val incorrectParamName = """
+                /**
+                 * @param someParam Description of param
+                 */
+                fun myFun(otherParam: String) {}
+            """.trimIndent()
+            assertThat(subject.lint(incorrectParamName))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@param someParam doesn't have corresponding public declaration.",
+                    "Documentation of otherParam is missing.",
+                )
+        }
+    }
+
+    @Nested
+    inner class `inline code descriptions` {
+
+        @Test
+        fun `should not report when aligned params are documented with backtick-only descriptions`() {
+            val backtickOnlyDescriptions = """
+                /**
+                 * @param hue        `[0, 1]`
+                 * @param saturation `[0, 1]`
+                 * @param brightness `[0, 1]`
+                 * @param alpha      `[0, 1]`
+                 */
+                fun fromHsb(hue: Float, saturation: Float, brightness: Float, alpha: Float) = Unit
+            """.trimIndent()
+            assertThat(subject.lint(backtickOnlyDescriptions)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when unaligned params are documented with backtick-only descriptions`() {
+            val backtickOnlyDescriptions = """
+                /**
+                 * @param hue `[0, 1]`
+                 * @param saturation `[0, 1]`
+                 */
+                fun fromHsb(hue: Float, saturation: Float) = Unit
+            """.trimIndent()
+            assertThat(subject.lint(backtickOnlyDescriptions)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when class params and properties are documented with backtick-only descriptions`() {
+            val backtickOnlyDescriptions = """
+                /**
+                 * @param someParam `[0, 1]`
+                 * @property someProp `[0, 1]`
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(subject.lint(backtickOnlyDescriptions)).isEmpty()
+        }
+
+        @Test
+        fun `should report when a param documented with backtick-only description is not present in the declaration`() {
+            val backtickOnlyDescriptions = """
+                /**
+                 * @param hue `[0, 1]`
+                 * @param saturation `[0, 1]`
+                 */
+                fun fromHsb(hue: Float) = Unit
+            """.trimIndent()
+            assertThat(subject.lint(backtickOnlyDescriptions)).singleElement()
+                .hasMessage("@param saturation doesn't have corresponding public declaration.")
+        }
+
+        @Test
+        fun `should report when params documented with backtick-only descriptions have mismatching order`() {
+            val backtickOnlyDescriptions = """
+                /**
+                 * @param saturation `[0, 1]`
+                 * @param hue `[0, 1]`
+                 */
+                fun fromHsb(hue: Float, saturation: Float) = Unit
+            """.trimIndent()
+            assertThat(subject.lint(backtickOnlyDescriptions)).singleElement()
+                .hasMessage("Documentation elements order is mismatched with declaration.")
+        }
+
+        @Test
+        fun `should report when not all params are documented with backtick-only descriptions`() {
+            val backtickOnlyDescriptions = """
+                /**
+                 * @param hue `[0, 1]`
+                 * @param saturation `[0, 1]`
+                 */
+                fun fromHsb(hue: Float, saturation: Float, brightness: Float) = Unit
+            """.trimIndent()
+            assertThat(subject.lint(backtickOnlyDescriptions)).singleElement()
+                .hasMessage("Documentation of brightness is missing.")
+        }
+
+        @Test
+        fun `should not report param tags inside fenced code blocks as documentation`() {
+            val fencedCodeBlock = """
+                /**
+                 * @param someParam usage:
+                 * ```
+                 * @param fake
+                 * ```
+                 */
+                fun myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(subject.lint(fencedCodeBlock)).isEmpty()
+        }
+    }
+
+    @Nested
+    inner class `function with type params` {
+
+        @Test
+        fun `should not report when doc match function params`() {
+            val correctTypeParam = """
+                /**
+                 * @param T Description of type param
+                 * @param someParam Description of param
+                 */
+                fun <T> myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(subject.lint(correctTypeParam)).isEmpty()
+        }
+
+        @Test
+        fun `should report when doc misses type param`() {
+            val missingTypeParam = """
+                /**
+                 * @param someParam Description of param
+                 */
+                fun <T> myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(subject.lint(missingTypeParam)).singleElement()
+                .hasMessage("Documentation of T is missing.")
+        }
+
+        @Test
+        fun `should report when doc mismatch type param name`() {
+            val incorrectTypeParamName = """
+                /**
+                 * @param S Description of type param
+                 * @param someParam Description of param
+                 */
+                fun <T> myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(subject.lint(incorrectTypeParamName))
+                .hasSize(2)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@param S doesn't have corresponding public declaration.",
+                    "Documentation of T is missing.",
+                )
+        }
+
+        @Test
+        fun `should report when doc mismatch type param list`() {
+            val incorrectTypeParamList = """
+                /**
+                 * @param T Description of type param
+                 * @param someParam Description of param
+                 */
+                fun <T, S> myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(subject.lint(incorrectTypeParamList)).singleElement()
+                .hasMessage("Documentation of S is missing.")
+        }
+
+        @Test
+        fun `should report when not all type params are first declarations of doc`() {
+            val incorrectTypeParamsOrder = """
+                /**
+                 * @param T Description of type param
+                 * @param someParam Description of param
+                 * @param S Description of type param
+                 */
+                fun <T, S> myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(subject.lint(incorrectTypeParamsOrder)).singleElement()
+                .hasMessage("Documentation elements order is mismatched with declaration.")
+        }
+    }
+
+    @Nested
+    inner class `advanced scenarios` {
+
+        @Test
+        fun `should not report when doc match all signatures`() {
+            val correctClassWithFunction = """
+                /**
+                 * @param someParam Description of param
+                 */
+                class MyClass(someParam: String) {
+                    /**
+                     * @param someParam Description of param
+                     */
+                    fun myFun(someParam: String) {}
+                }
+            """.trimIndent()
+            assertThat(subject.lint(correctClassWithFunction)).isEmpty()
+        }
+
+        @Test
+        fun `should report for every class and function with incorrect doc`() {
+            val incorrectClassWithTwoIncorrectFunctions = """
+                /**
+                 * @param someParam Description of param
+                 */
+                class MyClass(val someProp: String) {
+                    /**
+                     * @param someParam Description of param
+                     */
+                    fun myFun(someParam: String, someSecondParam: String) {}
+                    /**
+                     * @param someParam Description of param
+                     */
+                    fun myOtherFun(otherParam: String) {}
+                    /**
+                     * @param someParam Description of param
+                     */
+                    class MyNestedClass(otherParam: String)
+                }
+            """.trimIndent()
+            assertThat(subject.lint(incorrectClassWithTwoIncorrectFunctions))
+                .hasSize(7)
+                .extracting("message")
+                .containsExactlyInAnyOrder(
+                    "@param someParam doesn't have corresponding public declaration.",
+                    "@param someParam doesn't have corresponding public declaration.",
+                    "@param someParam doesn't have corresponding public declaration.",
+                    "Documentation of someProp is missing.",
+                    "Documentation of someSecondParam is missing.",
+                    "Documentation of otherParam is missing.",
+                    "Documentation of otherParam is missing.",
+                )
+        }
+    }
+
+    @Nested
+    inner class `configuration matchTypeParameters` {
+        private val configuredSubject =
+            OutdatedDocumentation(TestConfig("matchTypeParameters" to false))
+
+        @Test
+        fun `should not report when class type parameters mismatch and configuration is off`() {
+            val incorrectClassTypeParams = """
+                /**
+                 * @param someParam Description of param
+                 */
+                class MyClass<T, S>(someParam: String)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(incorrectClassTypeParams)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when function type parameters mismatch and configuration is off`() {
+            val incorrectFunctionTypeParams = """
+                /**
+                 * @param someParam Description of param
+                 */
+                fun <T, S> myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(incorrectFunctionTypeParams)).isEmpty()
+        }
+    }
+
+    @Nested
+    inner class `configuration matchDeclarationsOrder` {
+        private val configuredSubject =
+            OutdatedDocumentation(TestConfig("matchDeclarationsOrder" to false))
+
+        @Test
+        fun `should not report when declarations order mismatch and configuration is off`() {
+            val incorrectDeclarationsOrder = """
+                /**
+                 * @param someParam Description of param
+                 * @param otherParam Description of param
+                 */
+                class MyClass(otherParam: String, someParam: String)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(incorrectDeclarationsOrder)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when declarations with types order mismatch and configuration is off`() {
+            val incorrectDeclarationsOrderWithType = """
+                /**
+                 * @param S Description of type param
+                 * @param someParam Description of param
+                 * @param otherParam Description of param
+                 * @param T Description of param
+                 */
+                fun <T, S> myFun(otherParam: String, someParam: String) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(incorrectDeclarationsOrderWithType)).isEmpty()
+        }
+    }
+
+    @Nested
+    inner class `configuration allowParamOnConstructorProperties` {
+        private val configuredSubject = OutdatedDocumentation(
+            TestConfig("allowParamOnConstructorProperties" to true)
+        )
+
+        @Test
+        fun `should not report when property is documented as param`() {
+            val propertyAsParam = """
+                /**
+                 * @param someParam Description of param
+                 * @param someProp Description of property
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(propertyAsParam)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when internal or protected property is documented as param`() {
+            val propertyAsParam = """
+                /**
+                 * @param a Description of param
+                 * @param b Description of property
+                 */
+                open class MyClass(internal val a: String, protected val b: String)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(propertyAsParam)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when property is documented as property`() {
+            val propertyAsParam = """
+                /**
+                 * @param someParam Description of param
+                 * @property someProp Description of property
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(propertyAsParam)).isEmpty()
+        }
+    }
+
+    @Nested
+    inner class `override properties in class hierarchy` {
+        @Test
+        fun `should not report when subclass overrides documented property from base class`() {
+            val code = """
+                /**
+                 * @property name The name
+                 */
+                open class Named(open val name: String)
+
+                /**
+                 * @property age The age
+                 */
+                class Person(
+                    override val name: String,
+                    val age: Int
+                ) : Named(name)
+            """.trimIndent()
+            assertThat(subject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when subclass overrides and has own documented properties`() {
+            val code = """
+                /**
+                 * @property id The identifier
+                 */
+                abstract class Entity(open val id: String)
+
+                /**
+                 * @property name The user name
+                 * @property email The user email
+                 */
+                class User(
+                    override val id: String,
+                    val name: String,
+                    val email: String
+                ) : Entity(id)
+            """.trimIndent()
+            assertThat(subject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when data class overrides property from superclass`() {
+            val code = """
+                open class HasId(open val id: Long)
+
+                /**
+                 * @property name The name
+                 */
+                data class Item(
+                    override val id: Long,
+                    val name: String
+                ) : HasId(id)
+            """.trimIndent()
+            assertThat(subject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should report when override property is incorrectly documented`() {
+            val code = """
+                interface Named {
+                    val name: String
+                }
+
+                /**
+                 * @property wrongName Wrong documentation
+                 */
+                class Person(
+                    override val name: String
+                ) : Named
+            """.trimIndent()
+            assertThat(subject.lint(code)).singleElement()
+                .hasMessage("@property wrongName doesn't have corresponding public declaration.")
+        }
+    }
+
+    @Nested
+    inner class `configuration matchDeclarationsOrder and allowParamOnConstructorProperties` {
+        private val configuredSubject = OutdatedDocumentation(
+            TestConfig(
+                "matchDeclarationsOrder" to false,
+                "allowParamOnConstructorProperties" to true,
+            )
+        )
+
+        @Test
+        fun `should not report when property is documented as param`() {
+            val propertyAsParam = """
+                /**
+                 * @param someParam Description of param
+                 * @param someProp Description of property
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(propertyAsParam)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when property is documented as property`() {
+            val propertyAsParam = """
+                /**
+                 * @param someParam Description of param
+                 * @property someProp Description of property
+                 */
+                class MyClass(someParam: String, val someProp: String)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(propertyAsParam)).isEmpty()
+        }
+
+        @Test
+        fun `should report when param which is private property is documented as property`() {
+            val code = """
+                /**
+                 * Doc
+                 * @property a desc
+                 */
+                class A(
+                    private val a: String,
+                )
+            """.trimIndent()
+            assertThat(subject.lint(code)).singleElement()
+                .hasMessage("@property a type doesn't match corresponding declaration of type param.")
+        }
+    }
+
+    @Nested
+    inner class `configuration exhaustive off` {
+        private val configuredSubject =
+            OutdatedDocumentation(TestConfig("exhaustive" to false))
+
+        @Test
+        fun `should not report when not all params are documented`() {
+            val code = """
+                /**
+                 * @param someParam Description of param
+                 */
+                fun myFun(someParam: String, otherParam: Int) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when not all class params are documented`() {
+            val code = """
+                /**
+                 * @param someParam Description of param
+                 */
+                class MyClass(someParam: String, otherParam: Int)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when not all properties are documented`() {
+            val code = """
+                /**
+                 * @property someProp Description of property
+                 */
+                class MyClass(val someProp: String, val otherProp: Int)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should report when documented param does not exist`() {
+            val code = """
+                /**
+                 * @param baz the argument to print
+                 */
+                fun foo(bar: Int) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).singleElement()
+                .hasMessage("@param baz doesn't have corresponding public declaration.")
+        }
+
+        @Test
+        fun `should report when documented property does not exist`() {
+            val code = """
+                /**
+                 * @property missing Description
+                 */
+                class MyClass(val actual: String)
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).singleElement()
+                .hasMessage("@property missing doesn't have corresponding public declaration.")
+        }
+
+        @Test
+        fun `should report when documented param order does not match declaration order`() {
+            val code = """
+                /**
+                 * @param b Description
+                 * @param a Description
+                 */
+                fun myFun(a: String, b: Int, c: Int) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).singleElement()
+                .hasMessage("Documentation elements order is mismatched with declaration.")
+        }
+
+        @Test
+        fun `should not report when documented param order matches declaration order`() {
+            val code = """
+                /**
+                 * @param a Description
+                 * @param c Description
+                 */
+                fun myFun(a: String, b: Int, c: Int) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should not report when not all type params are documented`() {
+            val code = """
+                /**
+                 * @param T Description of type param
+                 * @param someParam Description of param
+                 */
+                fun <T, S> myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).isEmpty()
+        }
+
+        @Test
+        fun `should report when documented type param does not exist`() {
+            val code = """
+                /**
+                 * @param X Description of type param
+                 * @param someParam Description of param
+                 */
+                fun <T> myFun(someParam: String) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).singleElement()
+                .hasMessage("@param X doesn't have corresponding public declaration.")
+        }
+
+        @Test
+        fun `should not report when doc is empty and params exist`() {
+            val code = """
+                /**
+                 * Some description
+                 */
+                fun myFun(someParam: String, otherParam: Int) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).isEmpty()
+        }
+    }
+
+    @Nested
+    inner class `configuration exhaustive off and matchDeclarationsOrder off` {
+        private val configuredSubject = OutdatedDocumentation(
+            TestConfig(
+                "exhaustive" to false,
+                "matchDeclarationsOrder" to false,
+            )
+        )
+
+        @Test
+        fun `should not report when documented param order does not match declaration order`() {
+            val code = """
+                /**
+                 * @param b Description
+                 * @param a Description
+                 */
+                fun myFun(a: String, b: Int, c: Int) {}
+            """.trimIndent()
+            assertThat(configuredSubject.lint(code)).isEmpty()
+        }
+    }
+}

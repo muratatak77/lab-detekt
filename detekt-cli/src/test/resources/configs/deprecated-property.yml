@@ -1,0 +1,3 @@
+test:
+  TestRuleWithDeprecation:
+    deprecated: 10

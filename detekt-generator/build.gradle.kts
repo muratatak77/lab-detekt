@@ -1,0 +1,88 @@
+@file:Suppress("StringLiteralDuplication")
+
+import java.io.ByteArrayOutputStream
+
+plugins {
+    id("com.gradleup.shadow") version "9.6.1"
+    id("module")
+    id("application")
+}
+
+application {
+    mainClass = "dev.detekt.generator.Main"
+}
+
+val detektCli = configurations.dependencyScope("detektCli")
+val detektCliClasspath = configurations.resolvable("detektCliClasspath") { extendsFrom(detektCli) }
+val generatedDocumentation = configurations.dependencyScope("generatedDocumentation")
+val generatedDocumentationFiles = configurations.resolvable("generatedDocumentationFiles") {
+    extendsFrom(generatedDocumentation)
+}
+
+dependencies {
+    implementation(libs.kotlin.compiler)
+    implementation(projects.detektApi)
+    implementation(projects.detektKotlinAnalysisApi)
+    implementation(projects.detektKotlinAnalysisApiStandalone)
+    detektCli(projects.detektCli)
+    implementation(projects.detektUtils)
+    implementation(libs.jcommander)
+    generatedDocumentation(projects.detektRulesComments) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesComplexity) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesCoroutines) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesEmptyBlocks) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesKtlintWrapper) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesExceptions) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesLibraries) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesNaming) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesPerformance) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesPotentialBugs) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesRuleauthors) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesStandardLibrary) { targetConfiguration = "generatedDocumentation" }
+    generatedDocumentation(projects.detektRulesStyle) { targetConfiguration = "generatedDocumentation" }
+
+    testImplementation(projects.detektTestUtils)
+    testImplementation(libs.assertj.core)
+    testCompileOnly(libs.jetbrains.annotations)
+}
+
+val generateCliOptions = tasks.register<JavaExec>("generateCliOptions") {
+    classpath = files(detektCliClasspath)
+    mainClass = "dev.detekt.cli.Main"
+    args = listOf("--help")
+
+    val cliOptionsOutput = isolated.rootProject.projectDirectory.file("website/docs/gettingstarted/_cli-options.mdx")
+    outputs.file(cliOptionsOutput)
+    doFirst {
+        standardOutput = ByteArrayOutputStream()
+    }
+    doLast {
+        cliOptionsOutput.asFile.apply {
+            writeText("```\n")
+            appendBytes((standardOutput as ByteArrayOutputStream).toByteArray())
+            appendText("```\n")
+        }
+    }
+}
+
+tasks.register("generateWebsite") {
+    description = "Generates detekt website"
+    group = "documentation"
+
+    dependsOn(
+        generateCliOptions,
+        copyDocumentation,
+        ":dokkaGenerate",
+        gradle.includedBuild("detekt-gradle-plugin").task(":dokkaGenerate"),
+    )
+}
+
+tasks.shadowJar {
+    @Suppress("DEPRECATION") // This flag will be disabled and removed in the next major version of Shadow.
+    enableKotlinModuleRemapping = false
+}
+
+val copyDocumentation = tasks.register<Copy>("copyDocumentation") {
+    from(generatedDocumentationFiles)
+    into("$rootDir/website/docs/rules")
+}

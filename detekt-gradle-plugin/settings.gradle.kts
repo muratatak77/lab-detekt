@@ -1,0 +1,71 @@
+rootProject.name = "detekt-gradle-plugin"
+
+pluginManagement {
+    includeBuild("../build-logic")
+}
+
+dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    repositories {
+        exclusiveContent {
+            forRepository {
+                google()
+            }
+            filter {
+                includeGroupAndSubgroups("com.android")
+                includeGroup("androidx.databinding")
+                includeGroup("com.google.testing.platform")
+            }
+        }
+        exclusiveContent {
+            forRepository {
+                maven("https://repo.gradle.org/artifactory/libs-releases/")
+            }
+            filter {
+                includeModule("org.gradle.experimental", "gradle-public-api")
+            }
+        }
+        mavenCentral()
+    }
+
+    versionCatalogs {
+        create("libs") {
+            from(files("../gradle/libs.versions.toml"))
+        }
+    }
+}
+
+plugins {
+    id("com.gradle.develocity") version "4.6.1"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+    id("com.autonomousapps.build-health") version "3.20.0"
+    // Kotlin plugin must be added to classpath to support build-health analysis
+    id("org.jetbrains.kotlin.jvm") version "2.4.21" apply false
+}
+
+val isCiBuild = providers.environmentVariable("CI").isPresent
+
+develocity {
+    buildScan {
+        // Publish to scans.gradle.com when `--scan` is used explicitly
+        if (!gradle.startParameter.isBuildScan) {
+            server = "https://community.develocity.cloud"
+            projectId = "detekt"
+            publishing.onlyIf { it.isAuthenticated }
+        }
+
+        uploadInBackground = !isCiBuild
+    }
+}
+
+// Ensure buildCache config is kept in sync with all builds (root, build-logic & detekt-gradle-plugin)
+buildCache {
+    local {
+        isEnabled = !isCiBuild
+    }
+    remote(develocity.buildCache) {
+        server = "https://community.develocity.cloud"
+        isEnabled = true
+        isPush = isCiBuild
+    }
+}

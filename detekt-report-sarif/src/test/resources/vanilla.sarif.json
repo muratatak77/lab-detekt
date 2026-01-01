@@ -1,0 +1,156 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "results": [
+        {
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "TestFile.kt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 3,
+                  "endLine": 2,
+                  "startColumn": 1,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "TestMessage"
+          },
+          "partialFingerprints": {
+            "signature/v1": "fe05bcdcdc4928012781a5f1a2a77cbb5398e106"
+          },
+          "ruleId": "detekt.RuleSet1.TestSmellA"
+        },
+        {
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "TestFile.kt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 5,
+                  "endLine": 3,
+                  "startColumn": 5,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "TestMessage"
+          },
+          "partialFingerprints": {
+            "signature/v1": "b802f384302cb24fbab0a44997e820bf2e8507bb"
+          },
+          "ruleId": "detekt.RuleSet2.TestSmellB"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "TestFile.kt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 3,
+                  "startColumn": 1,
+                  "startLine": 2
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "TestMessage"
+          },
+          "partialFingerprints": {
+            "signature/v1": "9f8f7eec5dea5ac43738721939c120318cbff1df"
+          },
+          "ruleId": "detekt.RuleSet2.TestSmellC/id"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "guid": "022ca8c2-f6a2-4c95-b107-bb72c43263f3",
+          "informationUri": "https://detekt.dev",
+          "language": "en",
+          "name": "detekt",
+          "organization": "detekt",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "helpUri": "http://example.org/TestSmellA",
+              "id": "detekt.RuleSet1.TestSmellA",
+              "name": "TestSmellA",
+              "shortDescription": {
+                "text": "Description A"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning"
+              },
+              "helpUri": "http://example.org/TestSmellB",
+              "id": "detekt.RuleSet2.TestSmellB",
+              "name": "TestSmellB",
+              "shortDescription": {
+                "text": "Description B"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "enabled": false,
+                "level": "note"
+              },
+              "helpUri": "http://example.org/TestSmellC",
+              "id": "detekt.RuleSet2.TestSmellC",
+              "name": "TestSmellC",
+              "shortDescription": {
+                "text": "Description C"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "enabled": false,
+                "level": "error"
+              },
+              "helpUri": "http://example.org/TestSmellC",
+              "id": "detekt.RuleSet2.TestSmellC/id",
+              "name": "TestSmellC/id",
+              "shortDescription": {
+                "text": "Description C"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "enabled": false,
+                "level": "error"
+              },
+              "id": "detekt.RuleSet2.TestSmellD",
+              "name": "TestSmellD",
+              "shortDescription": {
+                "text": "Description D"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

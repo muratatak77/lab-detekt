@@ -1,0 +1,70 @@
+plugins {
+    id("module")
+    id("generator")
+}
+
+val extraDepsToPackage = configurations.register("extraDepsToPackage")
+val ktlintToBundle = configurations.register("ktlintToBundle")
+
+dependencies {
+    compileOnly(projects.detektApi)
+    compileOnly(projects.detektPsiUtils)
+    // compileOnly so ktlint-repackage is not listed in the published POM (it's bundled into the JAR)
+    compileOnly(projects.detektRulesKtlintWrapper.ktlintRepackage) {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, named(Bundling.SHADOWED))
+        }
+    }
+    ktlintToBundle(projects.detektRulesKtlintWrapper.ktlintRepackage) {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, named(Bundling.SHADOWED))
+        }
+    }
+
+    runtimeOnly(libs.slf4j.api)
+
+    testImplementation(projects.detektRulesKtlintWrapper.ktlintRepackage) {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, named(Bundling.SHADOWED))
+        }
+    }
+    testImplementation(projects.detektApi)
+    testRuntimeOnly(projects.detektPsiUtils)
+    testImplementation(projects.detektTest)
+    testImplementation(projects.detektTestAssertj)
+    testImplementation(projects.detektTestUtils)
+    testImplementation(libs.assertj.core)
+    testImplementation(libs.classgraph)
+    testImplementation(libs.snakeyaml.engine)
+
+    testRuntimeOnly(libs.slf4j.nop)
+    testCompileOnly(libs.jetbrains.annotations)
+
+    extraDepsToPackage(libs.slf4j.nop)
+}
+
+tasks.jar {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE // allow duplicates
+    dependsOn(ktlintToBundle, extraDepsToPackage)
+    from(
+        ktlintToBundle.get().map { zipTree(it) },
+        extraDepsToPackage.get().map { zipTree(it) },
+    )
+}
+
+tapmoc {
+    @Suppress("MagicNumber")
+    java(17)
+}
+
+tasks.named("generateConfig") {
+    val ktlintVersion = libs.versions.ktlint
+    inputs.property("ktlintVersion", ktlintVersion)
+    doLast {
+        outputs.files.asFileTree.forEach {
+            if (it.isFile) {
+                it.writeText(it.readText().replace("<ktlintVersion/>", ktlintVersion.get()))
+            }
+        }
+    }
+}

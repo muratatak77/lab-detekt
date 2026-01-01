@@ -1,0 +1,54 @@
+package dev.detekt.generator.printer.defaultconfig
+
+import dev.detekt.generator.util.createRuleSetPage
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+
+class ConfigPrinterSpec {
+
+    private val ruleSetPage = createRuleSetPage()
+    private val yamlString = ConfigPrinter.print(listOf(ruleSetPage))
+
+    @Test
+    fun `prints the rule set in the correct yaml format`() {
+        val expectedRulePart = """
+            style:
+              active: true
+              rulesetconfig1: true
+              rulesetconfig2:
+                - 'foo'
+                - 'bar'
+              rulesetconfig3:
+                - 'first'
+                - 'se*cond'
+              MagicNumber:
+                active: true
+                aliases: ['alias1', 'alias2']
+                excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/*.kts']
+                conf1: 'foo'
+                conf3:
+                  - 'a'
+                  - 'b'
+                # conf5: If the 'code_style' ruleset property is set to 'android', the default is '100', otherwise '120'.
+              EqualsNull:
+                active: false
+              NoUnitKeyword:
+                active: true
+
+        """.trimIndent()
+
+        assertThat(yamlString).endsWith(expectedRulePart)
+    }
+
+    @Test
+    fun `omits deprecated ruleset properties`() {
+        assertThat(yamlString).doesNotContain("deprecatedSimpleConfig")
+        assertThat(yamlString).doesNotContain("deprecatedListConfig")
+    }
+
+    @Test
+    fun `omits deprecated rule properties`() {
+        assertThat(yamlString).doesNotContain("conf2")
+        assertThat(yamlString).doesNotContain("conf4")
+    }
+}

@@ -1,0 +1,217 @@
+package dev.detekt.gradle.plugin
+
+import com.android.build.api.AndroidPluginVersion
+import com.android.build.api.dsl.CommonExtension
+import com.android.build.api.variant.AndroidComponentsExtension
+import dev.detekt.detekt_gradle_plugin.BuildConfig
+import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.DetektCreateBaselineTask
+import dev.detekt.gradle.DetektGenerateConfigTask
+import dev.detekt.gradle.extensions.DetektExtension
+import dev.detekt.gradle.internal.DetektPlain
+import dev.detekt.gradle.plugin.DetektBasePlugin.Companion.CONFIG_DIR_NAME
+import dev.detekt.gradle.plugin.DetektBasePlugin.Companion.CONFIG_FILE
+import dev.detekt.gradle.plugin.internal.DetektAndroidCompilations
+import dev.detekt.gradle.plugin.internal.DetektJvmCompilations
+import dev.detekt.gradle.plugin.internal.DetektKmpJvmCompilations
+import dev.detekt.gradle.plugin.internal.setVisibleCompat
+import org.gradle.api.Incubating
+import org.gradle.api.Plugin
+import org.gradle.api.Project
+import org.gradle.api.attributes.Bundling
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.java.TargetJvmEnvironment
+import org.gradle.api.provider.ProviderFactory
+
+class DetektPlugin : Plugin<Project> {
+
+    override fun apply(project: Project) {
+        project.pluginManager.apply(DetektBasePlugin::class.java)
+
+        val extension = project.extensions.getByType(DetektExtension::class.java)
+
+        configurePluginDependencies(project, extension)
+        setTaskDefaults(project, extension)
+
+        project.registerDetektPlainTask(extension)
+        project.registerDetektJvmTasks(extension)
+        val enableAndroidTasks =
+            !project.providers
+                .gradleProperty(DETEKT_ANDROID_DISABLED_PROPERTY)
+                .getOrElse("false")
+                .toBoolean()
+        if (enableAndroidTasks) {
+            project.registerDetektAndroidTasks(extension)
+        }
+        val enableMppTasks =
+            !project.providers
+                .gradleProperty(DETEKT_MULTIPLATFORM_DISABLED_PROPERTY)
+                .getOrElse("false")
+                .toBoolean()
+        if (enableMppTasks) {
+            project.registerDetektMultiplatformTasks(extension)
+        }
+        project.registerGenerateConfigTask(extension)
+    }
+
+    private fun Project.registerDetektJvmTasks(extension: DetektExtension) {
+        plugins.withId("org.jetbrains.kotlin.jvm") {
+            DetektJvmCompilations.registerTasks(project, extension)
+        }
+    }
+
+    private fun Project.registerDetektMultiplatformTasks(extension: DetektExtension) {
+        plugins.withId("org.jetbrains.kotlin.multiplatform") {
+            DetektKmpJvmCompilations.registerTasks(project, extension)
+        }
+    }
+
+    private fun Project.registerDetektAndroidTasks(extension: DetektExtension) {
+        plugins.withId("com.android.base") {
+            @Suppress("MagicNumber")
+            fun agp9() =
+                extensions.getByType(AndroidComponentsExtension::class.java).pluginVersion >= AndroidPluginVersion(9, 0)
+
+            fun enableKotlinDslEnabled() = extensions.getByType(CommonExtension::class.java).enableKotlin
+
+            fun builtInGradlePropertyEnabled() =
+                providers
+                    .gradleProperty("android.builtInKotlin")
+                    .getOrElse("true")
+                    .toBooleanStrict()
+
+            // AGP 9.x, enabling built-in Kotlin with the Gradle property
+            if (builtInGradlePropertyEnabled() && agp9() && enableKotlinDslEnabled()) {
+                DetektAndroidCompilations.registerTasks(project, extension)
+                DetektAndroidCompilations.linkTasks(project, extension)
+            }
+
+            // Enabling built-in Kotlin with the plugin (only available in AGP 9 and higher)
+            plugins.withId("com.android.built-in-kotlin") {
+                if (!builtInGradlePropertyEnabled() && enableKotlinDslEnabled()) {
+                    DetektAndroidCompilations.registerTasks(project, extension)
+                    DetektAndroidCompilations.linkTasks(project, extension)
+                }
+            }
+
+            // AGP 9.x but not using built-in Kotlin, or AGP 8.x
+            plugins.withId("kotlin-android") {
+                DetektAndroidCompilations.registerTasks(project, extension)
+                DetektAndroidCompilations.linkTasks(project, extension)
+            }
+        }
+    }
+
+    private fun Project.registerDetektPlainTask(extension: DetektExtension) {
+        DetektPlain(this).registerTasks(extension)
+    }
+
+    private fun Project.registerGenerateConfigTask(extension: DetektExtension) {
+        val detektGenerateConfigSingleExecution = project.gradle.sharedServices.registerIfAbsent(
+            "DetektGenerateConfigSingleExecution",
+            DetektGenerateConfigTask.SingleExecutionBuildService::class.java
+        ) { spec ->
+            spec.maxParallelUsages.set(1)
+        }
+
+        tasks.register(GENERATE_CONFIG, DetektGenerateConfigTask::class.java) {
+            it.configFile.convention {
+                extension.config.lastOrNull() ?: project.file("$rootDir/$CONFIG_DIR_NAME/$CONFIG_FILE")
+            }
+            it.usesService(detektGenerateConfigSingleExecution)
+        }
+    }
+
+    private fun configurePluginDependencies(project: Project, extension: DetektExtension) {
+        project.configurations.register(CONFIGURATION_DETEKT) { configuration ->
+            configuration.setVisibleCompat(false)
+            configuration.isTransitive = true
+            configuration.description = "The $CONFIGURATION_DETEKT dependencies to be used for this project."
+            configuration.isCanBeResolved = true
+            configuration.isCanBeConsumed = false
+
+            configuration.defaultDependencies { dependencySet ->
+                val version = extension.toolVersion.get()
+                dependencySet.add(project.dependencies.create("dev.detekt:detekt-cli:$version"))
+            }
+
+            configuration.attributes {
+                it.attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named(Category::class.java, Category.LIBRARY))
+                it.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+                it.attribute(
+                    Bundling.BUNDLING_ATTRIBUTE,
+                    project.objects.named(Bundling::class.java, Bundling.EXTERNAL)
+                )
+                it.attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    project.objects.named(LibraryElements::class.java, LibraryElements.JAR)
+                )
+                it.attribute(
+                    TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE,
+                    project.objects.named(TargetJvmEnvironment::class.java, TargetJvmEnvironment.STANDARD_JVM)
+                )
+            }
+        }
+    }
+
+    private fun setTaskDefaults(project: Project, extension: DetektExtension) {
+        project.tasks.withType(Detekt::class.java).configureEach { task ->
+            task.detektClasspath.convention(project.configurations.named(CONFIGURATION_DETEKT))
+            task.pluginClasspath.convention(project.configurations.named(CONFIGURATION_DETEKT_PLUGINS))
+            val reportName = if (task.name.startsWith(DETEKT_TASK_NAME) && task.name != DETEKT_TASK_NAME) {
+                task.name.removePrefix(DETEKT_TASK_NAME).replaceFirstChar { it.lowercase() }
+            } else {
+                task.name
+            }
+            task.reports.html { report ->
+                report.required.convention(DEFAULT_REPORT_ENABLED_VALUE)
+                report.outputLocation.convention(extension.reportsDir.file("$reportName.html"))
+            }
+            task.reports.markdown { report ->
+                report.required.convention(DEFAULT_REPORT_ENABLED_VALUE)
+                report.outputLocation.convention(extension.reportsDir.file("$reportName.md"))
+            }
+            task.reports.sarif { report ->
+                report.required.convention(DEFAULT_REPORT_ENABLED_VALUE)
+                report.outputLocation.convention(extension.reportsDir.file("$reportName.sarif"))
+            }
+            task.reports.checkstyle { report ->
+                report.required.convention(DEFAULT_REPORT_ENABLED_VALUE)
+                report.outputLocation.convention(extension.reportsDir.file("$reportName.xml"))
+            }
+        }
+
+        project.tasks.withType(DetektCreateBaselineTask::class.java).configureEach { task ->
+            task.detektClasspath.convention(project.configurations.named(CONFIGURATION_DETEKT))
+            task.pluginClasspath.convention(project.configurations.named(CONFIGURATION_DETEKT_PLUGINS))
+        }
+
+        project.tasks.withType(DetektGenerateConfigTask::class.java).configureEach { task ->
+            task.detektClasspath.convention(project.configurations.named(CONFIGURATION_DETEKT))
+            task.pluginClasspath.convention(project.configurations.named(CONFIGURATION_DETEKT_PLUGINS))
+        }
+    }
+
+    internal companion object {
+        internal const val DETEKT_TASK_NAME = "detekt"
+        internal const val BASELINE_TASK_NAME = "detektBaseline"
+        private const val GENERATE_CONFIG = "detektGenerateConfig"
+        val defaultExcludes = listOf("build/")
+        val defaultIncludes = listOf("**/*.kt", "**/*.kts")
+
+        internal const val DETEKT_ANDROID_DISABLED_PROPERTY = "detekt.android.disabled"
+        internal const val DETEKT_MULTIPLATFORM_DISABLED_PROPERTY = "detekt.multiplatform.disabled"
+
+        internal const val DEFAULT_REPORT_ENABLED_VALUE = true
+    }
+}
+
+internal const val CONFIGURATION_DETEKT = "detekt"
+
+internal fun ProviderFactory.isWorkerApiEnabled(): Boolean =
+    gradleProperty("detekt.use.worker.api").getOrElse("false") == "true"
+
+@Incubating
+fun getSupportedKotlinVersion(): String = BuildConfig.KOTLIN_IMPLEMENTATION_VERSION

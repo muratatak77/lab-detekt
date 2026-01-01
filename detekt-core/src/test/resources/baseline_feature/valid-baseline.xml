@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SmellBaseline>
+    <ManuallySuppressedIssues>
+        <ID>LongParameterList:TestFile.kt:Signature</ID>
+        <ID>LongMethod:TestFile.kt:Signature</ID>
+    </ManuallySuppressedIssues>
+    <CurrentIssues>
+        <ID>FeatureEnvy/id:TestFile.kt:Signature</ID>
+    </CurrentIssues>
+</SmellBaseline>

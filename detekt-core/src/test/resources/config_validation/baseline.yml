@@ -1,0 +1,37 @@
+config:
+  warningsAsErrors: true
+  checkExhaustiveness: false
+processors:
+  active: true
+console-reports:
+  active: true
+
+complexity:
+  LongMethod:
+    active: true
+    allowedLines: 20
+  LongParameterList:
+    active: false
+    allowedFunctionParameters: 4
+  LargeClass:
+    active: false
+    threshold: 70
+  InnerMap:
+    Inner1:
+      active: true
+    Inner2:
+      active: true
+
+style:
+  active: true
+  WildcardImport:
+    active: true
+  NoElseInWhenExpression:
+    active: true
+  MagicNumber:
+    active: true
+    ignoreNumbers: ['-1', '0', '1', '2']
+
+comments:
+  CommentOverPrivateProperty:
+    active: false

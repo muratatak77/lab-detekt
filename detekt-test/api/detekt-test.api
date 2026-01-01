@@ -1,0 +1,44 @@
+public final class dev/detekt/test/FakeLanguageVersionSettingsKt {
+	public static final fun FakeLanguageVersionSettings (Lorg/jetbrains/kotlin/config/ExplicitApiMode;)Lorg/jetbrains/kotlin/config/LanguageVersionSettingsImpl;
+	public static synthetic fun FakeLanguageVersionSettings$default (Lorg/jetbrains/kotlin/config/ExplicitApiMode;ILjava/lang/Object;)Lorg/jetbrains/kotlin/config/LanguageVersionSettingsImpl;
+}
+
+public final class dev/detekt/test/FileProcessListenerExtensionsKt {
+	public static final fun invoke (Ldev/detekt/api/FileProcessListener;Ljava/util/List;Ldev/detekt/api/Detektion;Ljava/util/List;)Ldev/detekt/api/Detektion;
+	public static final fun invoke (Ldev/detekt/api/FileProcessListener;[Lorg/jetbrains/kotlin/psi/KtFile;Ldev/detekt/api/Detektion;Ljava/util/List;)Ldev/detekt/api/Detektion;
+	public static synthetic fun invoke$default (Ldev/detekt/api/FileProcessListener;Ljava/util/List;Ldev/detekt/api/Detektion;Ljava/util/List;ILjava/lang/Object;)Ldev/detekt/api/Detektion;
+	public static synthetic fun invoke$default (Ldev/detekt/api/FileProcessListener;[Lorg/jetbrains/kotlin/psi/KtFile;Ldev/detekt/api/Detektion;Ljava/util/List;ILjava/lang/Object;)Ldev/detekt/api/Detektion;
+}
+
+public final class dev/detekt/test/FindingExtensionsKt {
+	public static final fun getLocation (Ldev/detekt/api/Finding;)Ldev/detekt/api/Location;
+}
+
+public final class dev/detekt/test/RuleExtensionsKt {
+	public static final fun lint (Ldev/detekt/api/Rule;Ljava/lang/String;Lorg/jetbrains/kotlin/config/LanguageVersionSettings;Z)Ljava/util/List;
+	public static final fun lint (Ldev/detekt/api/Rule;Lorg/jetbrains/kotlin/psi/KtFile;Lorg/jetbrains/kotlin/config/LanguageVersionSettings;)Ljava/util/List;
+	public static synthetic fun lint$default (Ldev/detekt/api/Rule;Ljava/lang/String;Lorg/jetbrains/kotlin/config/LanguageVersionSettings;ZILjava/lang/Object;)Ljava/util/List;
+	public static synthetic fun lint$default (Ldev/detekt/api/Rule;Lorg/jetbrains/kotlin/psi/KtFile;Lorg/jetbrains/kotlin/config/LanguageVersionSettings;ILjava/lang/Object;)Ljava/util/List;
+	public static final fun lintWithContext (Ldev/detekt/api/Rule;Ldev/detekt/test/utils/KotlinEnvironmentContainer;Ljava/lang/String;[Ljava/lang/String;ZLorg/jetbrains/kotlin/config/LanguageVersionSettings;)Ljava/util/List;
+	public static synthetic fun lintWithContext$default (Ldev/detekt/api/Rule;Ldev/detekt/test/utils/KotlinEnvironmentContainer;Ljava/lang/String;[Ljava/lang/String;ZLorg/jetbrains/kotlin/config/LanguageVersionSettings;ILjava/lang/Object;)Ljava/util/List;
+}
+
+public final class dev/detekt/test/TestConfig : dev/detekt/api/Config {
+	public fun <init> (Ldev/detekt/api/Config;[Lkotlin/Pair;)V
+	public fun <init> ([Lkotlin/Pair;)V
+	public fun getParent ()Ldev/detekt/api/Config;
+	public synthetic fun subConfig (Ljava/lang/String;)Ldev/detekt/api/Config;
+	public fun subConfig (Ljava/lang/String;)Ldev/detekt/test/TestConfig;
+	public fun subConfigKeys ()Ljava/util/Set;
+	public fun valueOrNull (Ljava/lang/String;Lkotlin/reflect/KClass;)Ljava/lang/Object;
+}
+
+public final class dev/detekt/test/TestConfigKt {
+	public static final fun toConfig (Ldev/detekt/api/ValueWithReason;)Ljava/util/Map;
+}
+
+public final class dev/detekt/test/TestDetektionKt {
+	public static final fun TestDetektion ([Ldev/detekt/api/Issue;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/Map;)Ldev/detekt/api/Detektion;
+	public static synthetic fun TestDetektion$default ([Ldev/detekt/api/Issue;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Ldev/detekt/api/Detektion;
+}
+

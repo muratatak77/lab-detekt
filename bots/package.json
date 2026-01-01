@@ -1,0 +1,13 @@
+{
+  "name": "@detekt/bots",
+  "private": true,
+  "description": "Bots and automation for detekt",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "danger": "14.1.0"
+  },
+  "resolutions": {
+  }
+}

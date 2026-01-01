@@ -1,0 +1,71 @@
+package dev.detekt.core.config
+
+import dev.detekt.api.Severity
+import dev.detekt.api.testfixtures.createIssue
+import dev.detekt.test.TestDetektion
+import dev.detekt.tooling.api.spec.RulesSpec
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE
+import org.junit.jupiter.params.provider.EnumSource.Mode.INCLUDE
+
+class FailurePoliciesKtTest {
+
+    @Nested
+    inner class `Never Fail` {
+        val subject = RulesSpec.FailurePolicy.NeverFail
+
+        @Test
+        fun `does not fail without an issue`() {
+            val result = TestDetektion()
+
+            assertThat(subject.check(result)).isEqualTo(FailurePolicyResult.Ok)
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = Severity::class)
+        fun `does not fail on issue with any severity`(issueSeverity: Severity) {
+            val result = TestDetektion(createIssue(severity = issueSeverity))
+
+            assertThat(subject.check(result)).isEqualTo(FailurePolicyResult.Ok)
+        }
+    }
+
+    @Nested
+    inner class `Fail On Severity` {
+        val subject = RulesSpec.FailurePolicy.FailOnSeverity(Severity.Warning)
+
+        @Test
+        fun `does not fail without an issue`() {
+            val result = TestDetektion()
+            assertThat(subject.check(result)).isEqualTo(FailurePolicyResult.Ok)
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = Severity::class, names = ["Info"], mode = EXCLUDE)
+        fun `fails on at least one issue at or above threshold`(issueSeverity: Severity) {
+            val result = TestDetektion(createIssue(severity = issueSeverity))
+
+            assertThat(subject.check(result)).isEqualTo(FailurePolicyResult.Fail("Analysis failed with 1 issues."))
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = Severity::class, names = ["Info"], mode = INCLUDE)
+        fun `does not fail on issue below threshold`(issueSeverity: Severity) {
+            val result = TestDetektion(createIssue(severity = issueSeverity))
+
+            assertThat(subject.check(result)).isEqualTo(FailurePolicyResult.Ok)
+        }
+
+        @Test
+        fun `does not fail on suppressed issues`() {
+            val result = TestDetektion(
+                createIssue(severity = Severity.Error, suppressReasons = listOf("Because reasons"))
+            )
+            assertThat(subject.check(result)).isEqualTo(FailurePolicyResult.Ok)
+        }
+    }
+}

@@ -1,0 +1,64 @@
+complexity:
+  TooManyFunctions:
+    excludes: ["**/test/**", "**/functionalTest/**"]
+
+naming:
+  ClassNaming:
+    ignoreAnnotated: ['org.junit.jupiter.api.Nested']
+  FunctionNaming:
+    active: true
+    excludes: []
+    ignoreAnnotated: ['Test', 'ParameterizedTest', 'RepeatedTest', 'TestFactory']
+
+performance:
+  SpreadOperator:
+    excludes: ["**/test/**", "**/functionalTest/**"]
+
+style:
+  ForbiddenImport:
+    active: true
+    forbiddenImports:
+      - value: 'org.gradle.util.GradleVersion'
+        reason: 'Gradle version checks must be isolated to GradleCompat.kt'
+    excludes: ["**/GradleCompat.kt"]
+  MagicNumber:
+    active: true
+    ignoreLocalVariableDeclaration: true
+    excludes: ["**/test/**", "**/*Test.kt", "**/*Spec.kt"]
+  MaxLineLength:
+    active: true
+    excludes: ["**/test/**", "**/*Test.kt", "**/*Spec.kt"]
+    excludeCommentStatements: true
+
+ktlint:
+  active: true
+  BlankLineBeforeDeclaration:
+    active: false
+  ChainMethodContinuation:
+    active: false
+  FunctionSignature:
+    functionBodyExpressionWrapping: multiline
+  MaximumLineLength:
+    active: false
+  MultilineExpressionWrapping:
+    active: false
+  NoEmptyFirstLineInClassBody:
+    active: false
+  StringTemplateIndent:
+    active: false
+  TrailingCommaOnCallSite:
+    active: false
+
+potential-bugs:
+  DoubleMutabilityForCollection:
+    active: true
+    mutableTypes:
+      - 'kotlin.collections.MutableList'
+      - 'kotlin.collections.MutableMap'
+      - 'kotlin.collections.MutableSet'
+      - 'java.util.ArrayList'
+      - 'java.util.LinkedHashSet'
+      - 'java.util.HashSet'
+      - 'java.util.LinkedHashMap'
+      - 'java.util.HashMap'
+      - 'org.gradle.api.file.ConfigurableFileCollection'

@@ -1,0 +1,57 @@
+package dev.detekt.core.reporting.console
+
+import dev.detekt.api.Severity.Error
+import dev.detekt.api.Severity.Info
+import dev.detekt.api.Severity.Warning
+import dev.detekt.api.testfixtures.TestSetupContext
+import dev.detekt.api.testfixtures.createIssue
+import dev.detekt.api.testfixtures.createIssueLocation
+import dev.detekt.api.testfixtures.createRuleInstance
+import dev.detekt.core.reporting.SuppressedIssueAssert
+import dev.detekt.core.reporting.decolorized
+import dev.detekt.test.TestDetektion
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import kotlin.io.path.Path
+import kotlin.io.path.absolute
+
+class FileBasedIssuesReportSpec {
+    private val basePath = Path("").absolute()
+    private val subject = FileBasedIssuesReport().apply { init(TestSetupContext(basePath = basePath)) }
+
+    @Test
+    fun `has the reference content`() {
+        val location1 = createIssueLocation("File1.kt")
+        val location2 = createIssueLocation("File2.kt")
+        val detektion = TestDetektion(
+            createIssue(createRuleInstance(ruleSetId = "Ruleset1"), location1, severity = Error),
+            createIssue(createRuleInstance(ruleSetId = "Ruleset1"), location2, severity = Warning),
+            createIssue(createRuleInstance(ruleSetId = "Ruleset2"), location1, severity = Info),
+        )
+
+        val output = subject.render(detektion)?.decolorized()
+
+        assertThat(output).isEqualTo(
+            """
+                ${basePath.resolve(location1.path)}
+                	e: TestSmell/id - [TestMessage] at ${basePath.resolve(location1.path)}:1:1
+                	i: TestSmell/id - [TestMessage] at ${basePath.resolve(location1.path)}:1:1
+                ${basePath.resolve(location2.path)}
+                	w: TestSmell/id - [TestMessage] at ${basePath.resolve(location2.path)}:1:1
+                
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `reports no findings`() {
+        val detektion = TestDetektion()
+        assertThat(subject.render(detektion)).isNull()
+    }
+
+    @Test
+    fun `should not add auto corrected issues to report`() {
+        val report = FileBasedIssuesReport()
+        SuppressedIssueAssert.isReportNull(report)
+    }
+}

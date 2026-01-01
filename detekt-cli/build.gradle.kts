@@ -1,0 +1,115 @@
+plugins {
+    id("com.gradleup.shadow") version "9.6.1"
+    id("module")
+    id("application")
+}
+
+application {
+    mainClass = "dev.detekt.cli.Main"
+}
+
+val pluginsJar = configurations.dependencyScope("pluginsJar")
+
+val pluginsJarFiles = configurations.resolvable("pluginsJarFiles") {
+    extendsFrom(pluginsJar)
+    isTransitive = false
+}
+
+@Suppress("MagicNumber")
+dependencies {
+    implementation(libs.jcommander)
+    implementation(projects.detektApi)
+    implementation(projects.detektTooling)
+    implementation(projects.detektUtils)
+    implementation(libs.kotlin.compiler) {
+        version {
+            strictly(libs.versions.kotlin.get())
+        }
+    }
+    runtimeOnly(projects.detektCore)
+    runtimeOnly(projects.detektRules)
+    runtimeOnly(projects.detektReportHtml)
+    runtimeOnly(projects.detektReportMarkdown)
+    runtimeOnly(projects.detektReportSarif)
+    runtimeOnly(projects.detektReportCheckstyle)
+
+    testImplementation(projects.detektTestUtils)
+    testImplementation(libs.assertj.core)
+    testRuntimeOnly(projects.detektRulesKtlintWrapper) {
+        attributes {
+            attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
+        }
+    }
+
+    pluginsJar(projects.detektRulesKtlintWrapper) {
+        attributes {
+            attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
+        }
+    }
+    pluginsJar(projects.detektRulesLibraries)
+    pluginsJar(projects.detektRulesRuleauthors)
+}
+
+shadow {
+    addShadowVariantIntoJavaComponent = false
+}
+
+publishing {
+    publications.withType<MavenPublication>().configureEach {
+        if (name == "maven") {
+            artifact(tasks.shadowJar)
+        }
+    }
+}
+
+tasks {
+    shadowJar {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        mergeServiceFiles()
+        filesMatching("META-INF/services/**") {
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        }
+        @Suppress("DEPRECATION") // This flag will be disabled and removed in the next major version of Shadow.
+        enableKotlinModuleRemapping = false
+    }
+
+    shadowDistZip {
+        archiveBaseName = "detekt-cli"
+    }
+    shadowDistTar { enabled = false }
+    distZip { enabled = false }
+    distTar { enabled = false }
+
+    val runWithHelpFlag = register<JavaExec>("runWithHelpFlag") {
+        outputs.upToDateWhen { true }
+        classpath = files(shadowJar)
+        args = listOf("--help")
+    }
+
+    val runWithArgsFile = register<JavaExec>("runWithArgsFile") {
+        // The task generating these jar files run first.
+        inputs.files(pluginsJarFiles)
+        doNotTrackState("The entire root directory is read as the input source.")
+        classpath = files(shadowJar)
+        workingDir = rootDir
+        args = listOf(
+            "@./config/detekt/argsfile",
+            "-p",
+            pluginsJarFiles.get().files.joinToString(File.pathSeparator) { it.path },
+        )
+    }
+
+    withType<Jar>().configureEach {
+        manifest {
+            // Workaround for https://github.com/detekt/detekt/issues/5576
+            attributes(mapOf("Add-Opens" to "java.base/java.lang"))
+        }
+    }
+
+    check {
+        dependsOn(runWithHelpFlag, runWithArgsFile)
+    }
+}
+
+val shadowDist = configurations.consumable("shadowDist")
+artifacts.add(shadowDist.name, tasks.shadowDistZip)

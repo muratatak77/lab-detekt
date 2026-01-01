@@ -1,0 +1,343 @@
+@file:Suppress("TooManyFunctions")
+
+package dev.detekt.rules.style
+
+import dev.detekt.api.Config
+import dev.detekt.api.Configuration
+import dev.detekt.api.Entity
+import dev.detekt.api.Finding
+import dev.detekt.api.RequiresAnalysisApi
+import dev.detekt.api.Rule
+import dev.detekt.api.config
+import dev.detekt.psi.fullyQualifiedNameGlobToRegex
+import org.jetbrains.kotlin.analysis.api.KaContextParameterApi
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
+import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.components.KaScopeKind
+import org.jetbrains.kotlin.analysis.api.components.compositeScope
+import org.jetbrains.kotlin.analysis.api.components.resolveSymbol
+import org.jetbrains.kotlin.analysis.api.components.scopeContext
+import org.jetbrains.kotlin.analysis.api.impl.base.references.KaBaseSimpleNameReference
+import org.jetbrains.kotlin.analysis.api.resolution.KaCallableMemberCall
+import org.jetbrains.kotlin.analysis.api.resolution.successfulCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaVariableSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.findClass
+import org.jetbrains.kotlin.analysis.api.types.symbol
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi.KtClassLiteralExpression
+import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtImportDirective
+import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtPackageDirective
+import org.jetbrains.kotlin.psi.KtSimpleNameExpression
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtTypeParameterListOwner
+import org.jetbrains.kotlin.psi.KtUserType
+import org.jetbrains.kotlin.psi.psiUtil.anyDescendantOfType
+import org.jetbrains.kotlin.psi.psiUtil.getParentOfType
+import org.jetbrains.kotlin.psi.psiUtil.getPossiblyQualifiedCallExpression
+import org.jetbrains.kotlin.psi.psiUtil.getReceiverExpression
+import org.jetbrains.kotlin.psi.psiUtil.parents
+
+/**
+ * This rule reports unnecessary fully qualified class names and function calls.
+ * The fully qualified names can be replaced with imports to make the code more readable.
+ *
+ * The rule does not report:
+ * - Import statements
+ * - Package declarations
+ * - String literals
+ * - Nested class references without packages (e.g., Outer.Inner)
+ * - Fully qualified names that were ignored by configuration
+ *
+ * See [PMD UnnecessaryFullyQualifiedName](https://pmd.github.io/latest/pmd_rules_java_codestyle.html#unnecessaryfullyqualifiedname)
+ * for a similar rule in the Java ecosystem.
+ *
+ * <noncompliant>
+ * class Foo {
+ *     fun bar(): java.util.List<String> {
+ *         val date = java.time.LocalDate.now()
+ *         return java.util.ArrayList()
+ *     }
+ *     fun baz() {
+ *         kotlin.io.println("Hello")
+ *     }
+ * }
+ * </noncompliant>
+ *
+ * <compliant>
+ * import java.time.LocalDate
+ * import java.util.ArrayList
+ * import java.util.List
+ *
+ * class Foo {
+ *     fun bar(): List<String> {
+ *         val date = LocalDate.now()
+ *         return ArrayList()
+ *     }
+ *     fun baz() {
+ *         println("Hello")
+ *     }
+ * }
+ * </compliant>
+ */
+class UnnecessaryFullyQualifiedName(config: Config) :
+    Rule(config, "Unnecessary fully qualified names make code harder to read. Use imports instead."),
+    RequiresAnalysisApi {
+
+    @Configuration(
+        "fully qualified names that are ignored, for example `['java.lang.String', 'kotlin.**.*', " +
+            "'java.util.*List', 'java.net.UR?']`",
+    )
+    private val ignoredFullyQualifiedNames: List<Regex> by config(emptyList<String>()) {
+        it.distinct().map { fqn ->
+            fqn.fullyQualifiedNameGlobToRegex()
+        }
+    }
+
+    @Suppress("ReturnCount")
+    override fun visitUserType(type: KtUserType) {
+        super.visitUserType(type)
+
+        if (isInImportOrPackage(type)) return
+        if (isInStringLiteral(type)) return
+
+        // Skip if this type is part of a larger qualified type to avoid duplicate reporting.
+        // For example, in java.util.Map.Entry, we have two KtUserType nodes:
+        // 1. java.util.Map (as the qualifier)
+        // 2. java.util.Map.Entry (the full type)
+        // We only want to report the full type, not the partial qualifier
+        val parent = type.parent
+        if (parent is KtUserType && parent.qualifier == type) {
+            return
+        }
+
+        val typeText = type.text
+        if (!typeText.contains(".")) return
+
+        analyze(type) {
+            @OptIn(KaImplementationDetail::class)
+            @Suppress("DEPRECATION")
+            val resolvedSymbol = (type.referenceExpression?.reference as? KaBaseSimpleNameReference)
+                ?.resolveToSymbol()
+                ?: return
+            val candidate = resolvedSymbol.ignoredFqNameCandidate()
+            if (candidate != null && ignoredFullyQualifiedNames.any { it.matches(candidate) }) return
+            val packageFqName = resolvedSymbol.packageFqName() ?: return
+            if (!typeText.startsWith(packageFqName)) return
+            if (hasNameCollision(type, resolvedSymbol)) return
+        }
+
+        val qualifiedName = typeText.substringBefore('<')
+        report(
+            Finding(
+                Entity.from(type),
+                "Fully qualified class name '$qualifiedName' can be replaced with an import.",
+            ),
+        )
+    }
+
+    @Suppress("ReturnCount")
+    override fun visitClassLiteralExpression(expression: KtClassLiteralExpression) {
+        super.visitClassLiteralExpression(expression)
+
+        if (isInImportOrPackage(expression)) return
+        if (isInStringLiteral(expression)) return
+
+        val receiverExpression = expression.receiverExpression ?: return
+        val receiverText = receiverExpression.text
+        if (!receiverText.contains(".")) return
+
+        analyze(receiverExpression) {
+            val resolvedSymbol = receiverExpression.expressionType?.symbol ?: return
+            val candidate = resolvedSymbol.ignoredFqNameCandidate()
+            if (candidate != null && ignoredFullyQualifiedNames.any { it.matches(candidate) }) return
+            val packageFqName = resolvedSymbol.packageFqName() ?: return
+            if (!receiverText.startsWith("$packageFqName.")) return
+            if (hasNameCollision(expression, resolvedSymbol)) return
+        }
+
+        report(
+            Finding(
+                Entity.from(receiverExpression),
+                "Fully qualified class reference '$receiverText' can be replaced with an import.",
+            ),
+        )
+    }
+
+    @Suppress("ReturnCount", "CyclomaticComplexMethod")
+    override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
+        super.visitDotQualifiedExpression(expression)
+
+        if (isInImportOrPackage(expression)) return
+        if (isInStringLiteral(expression)) return
+
+        // Skip if this expression is part of a larger dot-qualified expression to avoid duplicates
+        val parent = expression.parent
+        if (parent is KtDotQualifiedExpression && parent.receiverExpression == expression) {
+            return
+        }
+
+        if (!expression.text.contains(".")) return
+        val receiverText = expression.receiverExpression.text
+        val selectorText = expression.getPossiblyQualifiedCallExpression()?.calleeExpression?.text
+            ?: expression.selectorExpression?.text
+            ?: return
+
+        analyze(expression) {
+            val resolvedCall = expression.resolveToCall()?.successfulCallOrNull<KaCallableMemberCall<*, *>>()
+            val symbol = resolvedCall?.partiallyAppliedSymbol?.symbol ?: return
+            val candidate = symbol.ignoredFqNameCandidate()
+            if (candidate != null && ignoredFullyQualifiedNames.any { it.matches(candidate) }) return
+            val packageFqName = symbol.packageFqName() ?: return
+            if (!receiverText.startsWith(packageFqName)) return
+
+            // If the leftmost part of the receiver resolves to a variable/property, this is a method call on an
+            // instance (e.g. `val kotlin = Foo(); kotlin.method()`), not a package-qualified reference
+            if (isReceiverLocalVariableOrProperty(expression.receiverExpression)) return
+
+            val classId = symbol.callableId?.classId
+            val symbolToCheck = classId?.let { findClass(it) } ?: symbol
+            if (hasNameCollision(expression, symbolToCheck)) return
+
+            val finding = if (classId != null) {
+                Finding(
+                    Entity.from(expression.receiverExpression),
+                    "Fully qualified class reference '$receiverText' can be replaced with an import.",
+                )
+            } else {
+                val type = if (symbol is KaConstructorSymbol) "class reference" else "function call"
+                Finding(
+                    Entity.from(expression),
+                    "Fully qualified $type '$receiverText.$selectorText' can be replaced with an import.",
+                )
+            }
+            report(finding)
+        }
+    }
+
+    @OptIn(KaContextParameterApi::class)
+    context(_: KaSession)
+    private fun isReceiverLocalVariableOrProperty(receiver: KtExpression): Boolean {
+        val leftmost = leftmostReference(receiver) ?: return false
+        @OptIn(KaExperimentalApi::class)
+        return leftmost.resolveSymbol() is KaVariableSymbol
+    }
+
+    private fun leftmostReference(expression: KtExpression): KtNameReferenceExpression? =
+        when (expression) {
+            is KtNameReferenceExpression -> expression
+            is KtDotQualifiedExpression -> leftmostReference(expression.receiverExpression)
+            else -> null
+        }
+
+    private fun isInImportOrPackage(element: KtElement): Boolean =
+        element.getParentOfType<KtImportDirective>(strict = false) != null ||
+            element.getParentOfType<KtPackageDirective>(strict = false) != null
+
+    private fun isInStringLiteral(element: KtElement): Boolean =
+        element.getParentOfType<KtStringTemplateExpression>(strict = false) != null
+
+    @OptIn(KaContextParameterApi::class)
+    context(_: KaSession)
+    private fun hasNameCollision(element: KtElement, resolvedSymbol: KaSymbol): Boolean {
+        val simpleName = resolvedSymbol.collisionCheckName() ?: return false
+
+        if (resolvedSymbol !is KaCallableSymbol && isShadowedByTypeParameter(element, simpleName)) return true
+
+        // Annotation references resolve to constructors, so their classifier should be checked
+        val symbol = if (resolvedSymbol is KaConstructorSymbol) {
+            resolvedSymbol.containingClassId?.let { findClass(it) } ?: resolvedSymbol
+        } else {
+            resolvedSymbol
+        }
+
+        if (findLocalSymbols(element, simpleName).any { it != symbol }) return true
+        if (symbol is KaClassSymbol && hasOuterClassCollision(element, symbol)) return true
+        return false
+    }
+
+    @OptIn(KaContextParameterApi::class)
+    context(_: KaSession)
+    private fun findLocalSymbols(element: KtElement, name: Name): Sequence<KaSymbol> {
+        // Default imports are overridden by an added explicit import, so a default symbol with the same
+        // name is not a real collision (only explicit imports are). Same-package declarations are
+        // overridden too, so they only collide when the simple name is actually used unqualified
+        // somewhere in the file.
+        val scope =
+            element.containingKtFile.scopeContext(element).compositeScope {
+                it !is KaScopeKind.DefaultSimpleImportingScope &&
+                    it !is KaScopeKind.DefaultStarImportingScope &&
+                    (it !is KaScopeKind.PackageMemberScope || collidesWithPackageScope(element.containingKtFile, name))
+            }
+        return scope.classifiers(name) + scope.callables(name)
+    }
+
+    // An explicit import already shadows the same-package declaration, so any unqualified use in the
+    // file resolves to the import, not to the package member -- there is nothing left to collide with.
+    private fun collidesWithPackageScope(file: KtFile, name: Name): Boolean =
+        !hasExplicitImport(file, name) && isUsedUnqualified(file, name)
+
+    private fun hasExplicitImport(file: KtFile, name: Name): Boolean =
+        file.importDirectives.any {
+            !it.isAllUnder && (it.aliasName?.let(Name::identifier) ?: it.importedFqName?.shortName()) == name
+        }
+
+    private fun isUsedUnqualified(file: KtFile, name: Name): Boolean =
+        file.anyDescendantOfType<KtSimpleNameExpression> {
+            it.getReferencedNameAsName() == name &&
+                it.getReceiverExpression() == null &&
+                !isInImportOrPackage(it)
+        }
+
+    @OptIn(KaContextParameterApi::class)
+    context(_: KaSession)
+    private fun hasOuterClassCollision(element: KtElement, symbol: KaClassSymbol): Boolean =
+        // If any class in the outer chain has a name collision, the FQN can't be simplified
+        // because the import path through the outer class would be ambiguous.
+        generateSequence(symbol.classId?.outerClassId) { it.outerClassId }
+            .mapNotNull { findClass(it) }
+            .any { hasNameCollision(element, it) }
+
+    private fun isShadowedByTypeParameter(element: KtElement, name: Name): Boolean =
+        element.parents
+            .filterIsInstance<KtTypeParameterListOwner>()
+            .flatMap { it.typeParameters }
+            .any { it.nameAsName == name }
+
+    private fun KaSymbol.collisionCheckName(): Name? =
+        when (this) {
+            is KaClassSymbol -> classId?.shortClassName
+            is KaConstructorSymbol -> containingClassId?.shortClassName
+            is KaCallableSymbol -> callableId?.callableName
+            else -> null
+        }
+
+    private fun KaSymbol.packageFqName(): String? =
+        when (this) {
+            is KaClassSymbol -> classId?.packageFqName
+            is KaConstructorSymbol -> containingClassId?.packageFqName
+            is KaCallableSymbol -> callableId?.packageName
+            else -> null
+        }?.asString()?.takeIf { it.isNotBlank() }
+
+    private fun KaSymbol.ignoredFqNameCandidate(): String? =
+        when (this) {
+            is KaClassSymbol -> classId?.asFqNameString()
+            is KaClassLikeSymbol -> classId?.asFqNameString()
+            is KaConstructorSymbol -> containingClassId?.asFqNameString()
+            is KaCallableSymbol -> callableId?.classId?.asFqNameString() ?: callableId?.asSingleFqName()?.asString()
+            else -> null
+        }?.takeIf { it.isNotBlank() }
+}
