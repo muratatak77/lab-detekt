@@ -66,7 +66,7 @@ class BaselineResultMapping : ReportingExtension {
     private fun handleStaleEntries(baselineFile: Path, result: Detektion): Set<FindingId> {
         val baseline = DefaultBaseline.load(baselineFile)
         val stale = baseline.findStaleEntries(result)
-        if (pruneBaseline) {
+        if (pruneBaseline && stale.isNotEmpty()) {
             val baselineFormat = BaselineFormat()
             baselineFormat.write(
                 baselineFile,
