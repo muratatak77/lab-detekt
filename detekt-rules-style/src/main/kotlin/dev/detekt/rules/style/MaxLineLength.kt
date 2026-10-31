@@ -73,7 +73,7 @@ class MaxLineLength(config: Config) :
     }
 
     private fun isValidLine(file: KtFile, offset: () -> Int, line: String) =
-        line.length <= maxLineLength ||
+        line.length < maxLineLength ||
             isIgnoredStatement(file, offset, line) ||
             line.lastArgumentMatchesUrl() ||
             line.lastArgumentMatchesMarkdownUrlSyntax() ||
