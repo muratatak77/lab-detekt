@@ -31,6 +31,12 @@ interface DetektExtension {
 
     val allRules: Property<Boolean>
 
+    /**
+     * Removes the entries from the [baseline] file which no longer match any finding.
+     * Entries of files or rules which were not part of the analysis are kept.
+     */
+    val pruneBaseline: Property<Boolean>
+
     val buildUponDefaultConfig: Property<Boolean>
 
     val disableDefaultRuleSets: Property<Boolean>

@@ -15,4 +15,11 @@ interface BaselineSpec {
      * Should this analysis write all findings to a new baseline.
      */
     val shouldCreateDuringAnalysis: Boolean
+
+    /**
+     * Should this analysis remove the entries of [path] which no longer match any finding.
+     *
+     * Has no effect if [shouldCreateDuringAnalysis] is set as the baseline is replaced as a whole in that case.
+     */
+    val shouldPruneStaleEntries: Boolean
 }

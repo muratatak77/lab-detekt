@@ -167,6 +167,7 @@ console-reports:
   #  - 'FindingsReport'
   #  - 'FileBasedFindingsReport'
   #  - 'LiteFindingsReport'
+  #  - 'StaleBaselineReport'
 ```
 
 **ProjectStatisticsReport** contains metrics and statistics concerning the analyzed project sorted by priority.
@@ -181,6 +182,8 @@ It's simply a way of alerting users to information that they have opted-in to.
 
 **FileBasedFindingsReport** is similar to the FindingsReport shown above. 
 The rule violations are grouped by file location.
+
+**StaleBaselineReport** lists the [baseline](./baseline.mdx#finding-stale-entries) entries which no longer match any finding.
 
 ## Config JSON Schema
 

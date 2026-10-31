@@ -7,6 +7,7 @@ import dev.detekt.api.RuleSetProvider
 import dev.detekt.core.Analyzer
 import dev.detekt.core.FileProcessorLocator
 import dev.detekt.core.ProcessingSettings
+import dev.detekt.core.baseline.DETEKT_BASELINE_ANALYZED_FILES_KEY
 import dev.detekt.core.config.validation.checkConfiguration
 import dev.detekt.core.extensions.handleReportingExtensions
 import dev.detekt.core.getRules
@@ -34,6 +35,7 @@ internal class Lifecycle(
     fun analyze(): Detektion {
         measure(Phase.ValidateConfig) { checkConfiguration(settings, baselineConfig) }
         val filesToAnalyze = measure(Phase.Parsing) { settings.ktFiles }
+        settings.register(DETEKT_BASELINE_ANALYZED_FILES_KEY, filesToAnalyze.mapTo(HashSet()) { it.name })
         if (settings.spec.projectSpec.analysisMode == AnalysisMode.Full) {
             measure(Phase.ValidateClasspath) { validateClasspath(filesToAnalyze) }
         }

@@ -19,6 +19,12 @@ interface ReportingExtension : Extension {
     fun transformIssues(issues: List<Issue>): List<Issue> = issues
 
     /**
+     * Additional data to publish in [Detektion.userData]. Is called after all extensions's [transformIssues] were
+     * called, so that the data can be based on the outcome of the transformation.
+     */
+    fun userData(): Map<String, Any> = emptyMap()
+
+    /**
      * Is called after all extensions's [transformIssues] were called.
      */
     fun onFinalResult(result: Detektion) {

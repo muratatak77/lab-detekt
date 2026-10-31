@@ -35,6 +35,36 @@ class DetektJvmSpec {
     ).also(DslGradleRunner::setupProject)
 
     @Test
+    fun `does not prune the baseline by default`() {
+        val project = gradleRunner.buildProject()
+
+        val detektTask = project.tasks.getByPath("detektMain") as Detekt
+
+        assertThat(detektTask.arguments).doesNotContain("--prune-baseline")
+    }
+
+    @Test
+    fun `passes the prune option along if set on the task`() {
+        val project = gradleRunner.buildProject()
+
+        val detektTask = project.tasks.getByPath("detektMain") as Detekt
+        detektTask.pruneBaseline.set(true)
+
+        assertThat(detektTask.arguments).contains("--prune-baseline")
+    }
+
+    @Test
+    fun `omits the prune option if the task has no baseline`() {
+        val project = gradleRunner.buildProject()
+
+        val detektTask = project.tasks.getByPath("detektMain") as Detekt
+        detektTask.pruneBaseline.set(true)
+        detektTask.baseline.unsetConvention()
+
+        assertThat(detektTask.arguments).doesNotContain("--prune-baseline")
+    }
+
+    @Test
     fun `configures detekt type resolution task main`() {
         val project = gradleRunner.buildProject()
 

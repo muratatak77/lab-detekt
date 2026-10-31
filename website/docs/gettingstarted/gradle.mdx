@@ -209,6 +209,9 @@ detekt {
     // Specifying a baseline file. All findings stored in this file in subsequent runs of detekt.
     baseline = file("path/to/baseline.xml")
     
+    // Removes the entries from the baseline file which no longer match any finding. `false` by default.
+    pruneBaseline = false
+    
     // Disables all default detekt rulesets and will only run detekt with custom rules
     // defined in plugins passed in with `detektPlugins` configuration. `false` by default.
     disableDefaultRuleSets = false
@@ -269,6 +272,9 @@ detekt {
     
     // Specifying a baseline file. All findings stored in this file in subsequent runs of detekt.
     baseline = file("path/to/baseline.xml")
+    
+    // Removes the entries from the baseline file which no longer match any finding. `false` by default.
+    pruneBaseline = false
     
     // Disables all default detekt rulesets and will only run detekt with custom rules
     // defined in plugins passed in with `detektPlugins` configuration. `false` by default.

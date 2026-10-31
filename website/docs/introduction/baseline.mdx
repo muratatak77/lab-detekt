@@ -107,6 +107,22 @@ val detektProjectBaseline by tasks.registering(DetektCreateBaselineTask::class) 
 }
 ```
 
+#### Finding stale entries
+
+Once a finding is fixed its baseline entry is no longer needed. Worse, it silently hides the finding if it is ever
+reintroduced. Whenever detekt runs with a baseline it therefore reports the entries of `<CurrentIssues>` that no longer
+match any finding, on the console and in the HTML and Markdown reports.
+
+Pass `--prune-baseline` to the cli, or set `pruneBaseline = true` in the detekt-gradle-plugin closure, to remove them
+from the baseline file. The option can't be combined with `--create-baseline`.
+
+Only what was analyzed can be judged: entries of rules that did not run and of files that were not part of the analysis
+are kept, so it is safe to prune from a partial run such as a pre-commit hook. Entries in `<ManuallySuppressedIssues>`
+are never reported or removed.
+
+To silence the console output add `StaleBaselineReport` to the `exclude` list of
+[`console-reports`](./configurations.mdx#console-reports).
+
 #### FAQ
 
 Be aware that auto formatting cannot be combined with the `baseline`.

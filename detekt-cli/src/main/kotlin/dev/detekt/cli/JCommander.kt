@@ -48,6 +48,14 @@ private fun CliArgs.validate(jCommander: JCommander) {
         }
     }
 
+    if (pruneBaseline && baseline == null) {
+        violation = "Pruning a baseline.xml requires the --baseline parameter to specify a path."
+    }
+
+    if (pruneBaseline && createBaseline) {
+        violation = "--prune-baseline can't be combined with --create-baseline."
+    }
+
     if (violation != null) {
         throw HandledArgumentViolation(violation, jCommander.usageAsString())
     }

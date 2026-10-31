@@ -31,6 +31,7 @@ import dev.detekt.gradle.invoke.MultiPlatformEnabledArgument
 import dev.detekt.gradle.invoke.NoJdkArgument
 import dev.detekt.gradle.invoke.OptInArguments
 import dev.detekt.gradle.invoke.ParallelArgument
+import dev.detekt.gradle.invoke.PruneBaselineArgument
 import dev.detekt.gradle.plugin.isWorkerApiEnabled
 import org.gradle.api.Action
 import org.gradle.api.Incubating
@@ -122,6 +123,9 @@ abstract class Detekt @Inject constructor(
     abstract val allRules: Property<Boolean>
 
     @get:Input
+    abstract val pruneBaseline: Property<Boolean>
+
+    @get:Input
     abstract val optIn: ListProperty<String>
 
     @get:Input
@@ -180,6 +184,7 @@ abstract class Detekt @Inject constructor(
             JdkHomeArgument(jdkHome),
             ConfigArgument(config),
             BaselineArgumentOrEmpty(baseline.orNull),
+            PruneBaselineArgument(pruneBaseline.get() && baseline.isPresent),
             DefaultReportArgument(reports.checkstyle),
             DefaultReportArgument(reports.html),
             DefaultReportArgument(reports.sarif),

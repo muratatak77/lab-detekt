@@ -5,7 +5,9 @@ package dev.detekt.report.html
 import dev.detekt.api.Detektion
 import dev.detekt.api.Issue
 import dev.detekt.api.ProjectMetric
+import dev.detekt.api.STALE_BASELINE_ENTRIES_KEY
 import dev.detekt.api.Severity
+import dev.detekt.api.StaleBaselineEntries
 import dev.detekt.api.internal.whichDetekt
 import dev.detekt.api.testfixtures.TestSetupContext
 import dev.detekt.api.testfixtures.createIssue
@@ -61,6 +63,33 @@ class HtmlOutputReportSpec {
         val result = htmlReport.render(createTestDetektionWithMultipleSmells())
 
         assertThat(result).contains("Total: 3")
+    }
+
+    @Test
+    fun `lists the stale baseline entries and escapes them`() {
+        val stale = StaleBaselineEntries(setOf("LongMethod:File.kt:fun foo(): List<String>"), pruned = false)
+        val detektion = TestDetektion(userData = mapOf(STALE_BASELINE_ENTRIES_KEY to stale))
+
+        val result = htmlReport.render(detektion)
+
+        assertThat(result).contains("<h2>Stale Baseline Entries</h2>")
+        assertThat(result).contains("No longer match any finding: 1")
+        assertThat(result).contains("<code>LongMethod:File.kt:fun foo(): List&lt;String&gt;</code>")
+    }
+
+    @Test
+    fun `tells when the stale baseline entries were removed`() {
+        val stale = StaleBaselineEntries(setOf("LongMethod:File.kt:foo"), pruned = true)
+        val detektion = TestDetektion(userData = mapOf(STALE_BASELINE_ENTRIES_KEY to stale))
+
+        assertThat(htmlReport.render(detektion)).contains("Removed from the baseline: 1")
+    }
+
+    @Test
+    fun `omits the stale baseline section if there are no stale entries`() {
+        assertThat(htmlReport.render(TestDetektion()))
+            .doesNotContain("Stale Baseline Entries")
+            .doesNotContain("@@@")
     }
 
     @Test
