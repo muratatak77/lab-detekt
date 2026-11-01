@@ -19,7 +19,7 @@ class BaselineResultMapping : ReportingExtension {
     private var baselineFile: Path? = null
     private var createBaseline: Boolean = false
     private var pruneBaseline: Boolean = false
-    private var analyzedFiles: Set<String>? = null
+    private var analyzedFiles: Map<String, Set<String>>? = null
     private var rawResult: Detektion? = null
     private var staleEntries: Set<FindingId> = emptySet()
 
@@ -49,11 +49,19 @@ class BaselineResultMapping : ReportingExtension {
     private fun List<Issue>.transformWithBaseline(baselinePath: Path): List<Issue> {
         if (createBaseline) {
             createOrUpdate(baselinePath, this)
-        } else if (baselineExists(baselinePath)) {
-            rawResult?.let { staleEntries = handleStaleEntries(baselinePath, it) }
+        }
+        if (!baselineExists(baselinePath)) {
+            return this
         }
 
-        return filterByBaseline(baselinePath, this)
+        val baseline = DefaultBaseline.load(baselinePath)
+        val rawResult = rawResult
+        val remaining = if (createBaseline || rawResult == null) {
+            baseline
+        } else {
+            baseline.handleStaleEntries(baselinePath, rawResult)
+        }
+        return filterByBaseline(remaining, this)
     }
 
     override fun userData(): Map<String, Any> =
@@ -63,17 +71,17 @@ class BaselineResultMapping : ReportingExtension {
             mapOf(STALE_BASELINE_ENTRIES_KEY to StaleBaselineEntries(staleEntries, pruned = pruneBaseline))
         }
 
-    private fun handleStaleEntries(baselineFile: Path, result: Detektion): Set<FindingId> {
-        val baseline = DefaultBaseline.load(baselineFile)
-        val stale = baseline.findStaleEntries(result)
-        if (pruneBaseline && stale.isNotEmpty()) {
-            val baselineFormat = BaselineFormat()
-            baselineFormat.write(
-                baselineFile,
-                baselineFormat.of(baseline.manuallySuppressedIssues, baseline.currentIssues - stale),
-            )
+    private fun Baseline.handleStaleEntries(baselineFile: Path, result: Detektion): Baseline {
+        val stale = findStaleEntries(result)
+        staleEntries = stale
+        if (!pruneBaseline || stale.isEmpty()) {
+            return this
         }
-        return stale
+
+        val baselineFormat = BaselineFormat()
+        val pruned = baselineFormat.of(manuallySuppressedIssues, currentIssues - stale)
+        baselineFormat.write(baselineFile, pruned)
+        return pruned
     }
 
     private fun Baseline.findStaleEntries(result: Detektion): Set<FindingId> {
@@ -81,17 +89,14 @@ class BaselineResultMapping : ReportingExtension {
         val activeRuleIds = result.rules.filter { it.active }.mapTo(HashSet()) { it.id }
         val analyzedFiles = analyzedFiles
         return currentIssues.filterTo(sortedSetOf()) { id ->
-            id !in reportedIds && id.ruleId in activeRuleIds && (analyzedFiles == null || id.fileName in analyzedFiles)
+            id !in reportedIds &&
+                id.ruleId in activeRuleIds &&
+                (analyzedFiles == null || id.fileName in analyzedFiles[id.ruleId].orEmpty())
         }
     }
 
-    fun filterByBaseline(baselineFile: Path, issues: List<Issue>): List<Issue> =
-        if (baselineExists(baselineFile)) {
-            val baseline = DefaultBaseline.load(baselineFile)
-            issues.filterNot { baseline.contains(it.baselineId) }
-        } else {
-            issues
-        }
+    fun filterByBaseline(baseline: Baseline, issues: List<Issue>): List<Issue> =
+        issues.filterNot { baseline.contains(it.baselineId) }
 
     fun createOrUpdate(baselineFile: Path, issues: List<Issue>) {
         val ids = issues.map { it.baselineId }.toSortedSet()

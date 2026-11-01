@@ -117,7 +117,8 @@ Pass `--prune-baseline` to the cli, or set `pruneBaseline = true` in the detekt-
 from the baseline file. The option can't be combined with `--create-baseline`.
 
 Only what was analyzed can be judged: entries of rules that did not run and of files that were not part of the analysis
-are kept. Entries in `<ManuallySuppressedIssues>` are never reported or removed.
+are kept, and so are entries of files a rule skipped through its `includes` or `excludes`. Entries in
+`<ManuallySuppressedIssues>` are never reported or removed.
 
 Baseline entries only record the simple file name, so `a/Utils.kt` and `b/Utils.kt` can't be told apart. A partial run
 over `a/Utils.kt`, such as a pre-commit hook, reports the entries of `b/Utils.kt` as stale and pruning removes them, even

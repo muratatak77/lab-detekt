@@ -136,7 +136,7 @@ class BaselineResultMappingSpec {
             createBaseline = true,
         )
 
-        val filtered = mapping.filterByBaseline(baselineFile, issues)
+        val filtered = mapping.filterByBaseline(DefaultBaseline.load(baselineFile), issues)
 
         assertThat(filtered).isNotEqualTo(issues)
     }
@@ -148,7 +148,7 @@ class BaselineResultMappingSpec {
             createBaseline = false,
         )
 
-        val filtered = mapping.filterByBaseline(baselineFile, issues)
+        val filtered = mapping.transformIssues(issues)
 
         assertThat(filtered).isEqualTo(issues)
     }
@@ -304,6 +304,22 @@ class StaleBaselineEntriesSpec {
     }
 
     @Test
+    fun `keeps entries of files the rule skipped through its path filters`() {
+        val baselineFile = baselineWith(otherFileIssue, fixedIssue)
+        val mapping = resultMapping(
+            baselineFile = baselineFile,
+            createBaseline = false,
+            pruneBaseline = true,
+            analyzedFiles = mapOf("RuleA" to setOf("TestFile.kt"), "RuleC" to setOf("OtherFile.kt")),
+        )
+
+        mapping.run(emptyList())
+
+        assertThat(mapping.staleEntries()?.ids).containsExactly(fixedIssue)
+        assertThat(DefaultBaseline.load(baselineFile).currentIssues).containsExactly(otherFileIssue)
+    }
+
+    @Test
     fun `can't tell an entry of a not analyzed file from an analyzed file of the same name`() {
         // The id could belong to any TestFile.kt: it holds the simple file name only, see baseline.mdx.
         val baselineFile = baselineWith(fixedIssue)
@@ -375,7 +391,7 @@ class StaleBaselineEntriesSpec {
             baselineFile = baselineFile,
             createBaseline = false,
             pruneBaseline = prune,
-            analyzedFiles = setOf("TestFile.kt"),
+            analyzedFiles = mapOf("RuleA" to setOf("TestFile.kt")),
         )
 }
 
@@ -383,7 +399,7 @@ private fun resultMapping(
     baselineFile: Path?,
     createBaseline: Boolean?,
     pruneBaseline: Boolean? = null,
-    analyzedFiles: Set<String>? = null,
+    analyzedFiles: Map<String, Set<String>>? = null,
 ) = BaselineResultMapping().apply {
     init(
         TestSetupContext(

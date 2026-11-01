@@ -336,6 +336,29 @@ class AnalyzerSpec {
             }
         }
 
+        @Test
+        fun `analyzedFileNames leaves out the files a rule skips through its path filters`() {
+            val root = resourceAsPath("include_exclude")
+            val file = compileForTest(root.resolve("foo/Test.kt"))
+
+            fun analyzedFileNames(filter: String) =
+                listOf(
+                    createRuleDescriptor(
+                        ::NoEmptyFile,
+                        """
+                            custom:
+                              NoEmptyFile:
+                                active: true
+                                excludes: ["$filter"]
+                        """.trimIndent()
+                            .toConfig("custom", "NoEmptyFile"),
+                    )
+                ).analyzedFileNames(listOf(file), root)
+
+            assertThat(analyzedFileNames("**/foo/*.kt")).isEqualTo(mapOf("NoEmptyFile" to emptySet<String>()))
+            assertThat(analyzedFileNames("**/bar/*.kt")).isEqualTo(mapOf("NoEmptyFile" to setOf("Test.kt")))
+        }
+
         private fun isPathChecked(path: String, config: Config): Boolean {
             val root = resourceAsPath("include_exclude")
             val pathToCheck = resourceAsPath("include_exclude").resolve(path)

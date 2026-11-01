@@ -7,6 +7,7 @@ import dev.detekt.api.RuleSetProvider
 import dev.detekt.core.Analyzer
 import dev.detekt.core.FileProcessorLocator
 import dev.detekt.core.ProcessingSettings
+import dev.detekt.core.analyzedFileNames
 import dev.detekt.core.baseline.DETEKT_BASELINE_ANALYZED_FILES_KEY
 import dev.detekt.core.config.validation.checkConfiguration
 import dev.detekt.core.extensions.handleReportingExtensions
@@ -35,7 +36,6 @@ internal class Lifecycle(
     fun analyze(): Detektion {
         measure(Phase.ValidateConfig) { checkConfiguration(settings, baselineConfig) }
         val filesToAnalyze = measure(Phase.Parsing) { settings.ktFiles }
-        settings.register(DETEKT_BASELINE_ANALYZED_FILES_KEY, filesToAnalyze.mapTo(HashSet()) { it.name })
         if (settings.spec.projectSpec.analysisMode == AnalysisMode.Full) {
             measure(Phase.ValidateClasspath) { validateClasspath(filesToAnalyze) }
         }
@@ -50,8 +50,14 @@ internal class Lifecycle(
             processorsProvider.invoke() to rules
         }
 
+        val activeRules = rules.filter { it.ruleInstance.active }
+        settings.register(
+            DETEKT_BASELINE_ANALYZED_FILES_KEY,
+            activeRules.analyzedFileNames(filesToAnalyze, settings.spec.projectSpec.basePath),
+        )
+
         val result = measure(Phase.Analyzer) {
-            val analyzer = Analyzer(settings, rules.filter { it.ruleInstance.active }, processors, analysisMode)
+            val analyzer = Analyzer(settings, activeRules, processors, analysisMode)
             processors.forEach { it.onStart(filesToAnalyze) }
             val issues = analyzer.run(filesToAnalyze)
             val detektion = Detektion(issues, rules.map { it.ruleInstance })
