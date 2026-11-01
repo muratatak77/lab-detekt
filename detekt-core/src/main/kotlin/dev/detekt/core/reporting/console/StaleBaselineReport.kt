@@ -26,7 +26,7 @@ class StaleBaselineReport : ConsoleReport {
         val headline = if (stale.pruned) {
             "Removed $entries from the baseline:"
         } else {
-            "The baseline contains $entries. Use --prune-baseline to remove:"
+            "The baseline contains $entries. Use --prune-baseline or the Gradle option pruneBaseline to remove:"
         }
         return (listOf(headline) + stale.ids.map { "\t$it" }).joinToString(System.lineSeparator())
     }

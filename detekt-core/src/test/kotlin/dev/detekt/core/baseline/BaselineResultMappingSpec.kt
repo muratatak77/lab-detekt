@@ -304,6 +304,18 @@ class StaleBaselineEntriesSpec {
     }
 
     @Test
+    fun `can't tell an entry of a not analyzed file from an analyzed file of the same name`() {
+        // The id could belong to any TestFile.kt: it holds the simple file name only, see baseline.mdx.
+        val baselineFile = baselineWith(fixedIssue)
+        val mapping = staleMapping(baselineFile, prune = true)
+
+        mapping.run(emptyList())
+
+        assertThat(mapping.staleEntries()?.ids).containsExactly(fixedIssue)
+        assertThat(DefaultBaseline.load(baselineFile).currentIssues).isEmpty()
+    }
+
+    @Test
     fun `leaves the baseline file untouched without the prune option`() {
         val baselineFile = baselineWith(fixedIssue)
         val before = baselineFile.readText()

@@ -12,6 +12,7 @@ console-reports:
      - 'IssuesReport'
      - 'FileBasedIssuesReport'
   #  - 'LiteIssuesReport'
+  #  - 'StaleBaselineReport'
 
 comments:
   active: true

@@ -5,8 +5,10 @@ import dev.drewhamilton.poko.Poko
 /**
  * Baseline entries which no longer match any issue found by the analysis, e.g. because the code was fixed or removed.
  *
- * Entries of rules which did not run and of files which were not analyzed are never considered stale, as the analysis
- * cannot tell anything about them. Manually suppressed issues are curated by the user and are therefore left out too.
+ * Entries of rules which did not run and of files which were not analyzed are not considered stale, as the analysis
+ * cannot tell anything about them. Baseline ids only hold the simple file name though, so an entry of a file which was
+ * not analyzed counts as stale if an analyzed file has the same name. Manually suppressed issues are curated by the
+ * user and are therefore left out too.
  *
  * @property ids the sorted baseline ids which are stale
  * @property pruned whether the [ids] were removed from the baseline file during this analysis

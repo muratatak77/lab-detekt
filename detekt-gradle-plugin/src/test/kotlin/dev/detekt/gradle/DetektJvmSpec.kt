@@ -65,6 +65,17 @@ class DetektJvmSpec {
     }
 
     @Test
+    fun `omits the prune option if the baseline file does not exist`() {
+        val project = gradleRunner.buildProject()
+
+        val detektTask = project.tasks.getByPath("detektMain") as Detekt
+        detektTask.pruneBaseline.set(true)
+        detektTask.baseline.set(project.file("missing-baseline.xml"))
+
+        assertThat(detektTask.arguments).doesNotContain("--baseline", "--prune-baseline")
+    }
+
+    @Test
     fun `configures detekt type resolution task main`() {
         val project = gradleRunner.buildProject()
 

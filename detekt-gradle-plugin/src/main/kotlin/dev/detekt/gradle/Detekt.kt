@@ -171,7 +171,12 @@ abstract class Detekt @Inject constructor(
 
     init {
         group = LifecycleBasePlugin.VERIFICATION_GROUP
+        outputs.doNotCacheIf("Pruning rewrites the baseline file, a cache hit would skip that") { shouldPruneBaseline }
     }
+
+    // The `baseline` convention points to a file that may not exist, in which case no `--baseline` is passed either.
+    private val shouldPruneBaseline: Boolean
+        get() = pruneBaseline.get() && baseline.orNull?.asFile?.exists() == true
 
     @get:Internal
     internal val arguments
@@ -184,7 +189,7 @@ abstract class Detekt @Inject constructor(
             JdkHomeArgument(jdkHome),
             ConfigArgument(config),
             BaselineArgumentOrEmpty(baseline.orNull),
-            PruneBaselineArgument(pruneBaseline.get() && baseline.isPresent),
+            PruneBaselineArgument(shouldPruneBaseline),
             DefaultReportArgument(reports.checkstyle),
             DefaultReportArgument(reports.html),
             DefaultReportArgument(reports.sarif),

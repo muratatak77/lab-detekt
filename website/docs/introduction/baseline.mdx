@@ -117,8 +117,13 @@ Pass `--prune-baseline` to the cli, or set `pruneBaseline = true` in the detekt-
 from the baseline file. The option can't be combined with `--create-baseline`.
 
 Only what was analyzed can be judged: entries of rules that did not run and of files that were not part of the analysis
-are kept, so it is safe to prune from a partial run such as a pre-commit hook. Entries in `<ManuallySuppressedIssues>`
-are never reported or removed.
+are kept. Entries in `<ManuallySuppressedIssues>` are never reported or removed.
+
+Baseline entries only record the simple file name, so `a/Utils.kt` and `b/Utils.kt` can't be told apart. A partial run
+over `a/Utils.kt`, such as a pre-commit hook, reports the entries of `b/Utils.kt` as stale and pruning removes them, even
+though they are still needed. Only prune from a run that covers every file of the baseline. With the Gradle plugin this
+also means giving each task its own baseline file. Tasks sharing one file analyze only a part of it, and should not run
+in parallel with `pruneBaseline = true` because one task can read the file while another rewrites it.
 
 To silence the console output add `StaleBaselineReport` to the `exclude` list of
 [`console-reports`](./configurations.mdx#console-reports).

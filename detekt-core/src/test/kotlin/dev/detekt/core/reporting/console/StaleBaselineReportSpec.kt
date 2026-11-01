@@ -17,7 +17,8 @@ class StaleBaselineReportSpec {
     @Test
     fun `lists the stale entries and how to remove them`() {
         assertThat(subject.render(detektion("A:File.kt:a", "B:File.kt:b"))).isEqualTo(
-            "The baseline contains 2 stale entries. Use --prune-baseline to remove:$NL\tA:File.kt:a$NL\tB:File.kt:b"
+            "The baseline contains 2 stale entries. Use --prune-baseline or the Gradle option pruneBaseline to remove:" +
+                "$NL\tA:File.kt:a$NL\tB:File.kt:b"
         )
     }
 

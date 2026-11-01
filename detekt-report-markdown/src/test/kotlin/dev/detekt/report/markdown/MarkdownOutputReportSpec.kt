@@ -41,7 +41,16 @@ class MarkdownOutputReportSpec {
 
         assertThat(report).contains("## Stale Baseline Entries (2)")
         assertThat(report).contains("No longer match any finding:")
-        assertThat(report).contains("* `LongMethod:File.kt:foo`", "* `TooManyFunctions:File.kt:Bar`")
+        assertThat(report).contains("* `` LongMethod:File.kt:foo ``", "* `` TooManyFunctions:File.kt:Bar ``")
+    }
+
+    @Test
+    fun `keeps backticks of stale baseline entries inside the code span`() {
+        val stale = StaleBaselineEntries(setOf("LongMethod:FileSpec.kt:FileSpec\$`some test`"), pruned = false)
+
+        val report = markdownReport.render(TestDetektion(userData = mapOf(STALE_BASELINE_ENTRIES_KEY to stale)))
+
+        assertThat(report).contains("* `` LongMethod:FileSpec.kt:FileSpec\$`some test` ``")
     }
 
     @Test

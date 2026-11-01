@@ -13,6 +13,7 @@ import dev.detekt.api.staleBaselineEntries
 import dev.detekt.api.suppressed
 import dev.detekt.report.complexity.ComplexityReportGenerator
 import dev.detekt.utils.MarkdownContent
+import dev.detekt.utils.code
 import dev.detekt.utils.codeBlock
 import dev.detekt.utils.emptyLine
 import dev.detekt.utils.h1
@@ -148,7 +149,8 @@ private fun MarkdownContent.renderStaleBaseline(stale: StaleBaselineEntries) {
     h2 { "Stale Baseline Entries (%,d)".format(Locale.ROOT, stale.ids.size) }
     paragraph { if (stale.pruned) "Removed from the baseline:" else "No longer match any finding:" }
     list {
-        stale.ids.forEach { item { "`$it`" } }
+        // The padding keeps the span closed for ids which start or end with a backtick.
+        stale.ids.forEach { item { code { " $it " } } }
     }
     emptyLine()
 }
