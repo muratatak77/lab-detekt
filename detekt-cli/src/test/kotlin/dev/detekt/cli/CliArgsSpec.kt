@@ -656,8 +656,9 @@ private val expectedHelp = """
     |      Default: []
     |    --prune-baseline, -pb
     |      Removes the entries from the baseline file which no longer match any 
-    |      finding. Entries of files or rules which were not part of the analysis 
-    |      are kept.
+    |      finding. Entries of rules which did not run are kept, and so are entries 
+    |      of files which were not analyzed, unless an analyzed file has the same 
+    |      simple name. Only prune from a run covering all baseline files.
     |      Default: false
     |    --report, -r
     |      Generates a report for given 'report-id' and stores it on given 'path'. 
