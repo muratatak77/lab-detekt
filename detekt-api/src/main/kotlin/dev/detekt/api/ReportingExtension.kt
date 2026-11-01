@@ -18,7 +18,7 @@ interface ReportingExtension : Extension {
      */
     fun transformIssues(issues: List<Issue>): List<Issue> = issues
 
-    /**
+// Changed on the base while this PR was open
      * Is called after all extensions's [transformIssues] were called.
      */
     fun onFinalResult(result: Detektion) {
