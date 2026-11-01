@@ -24,6 +24,8 @@ interface ReportingExtension : Extension {
      */
     fun userData(): Map<String, Any> = emptyMap()
 
+    // Changed on the base while this PR was open
+
     /**
      * Is called after all extensions's [transformIssues] were called.
      */
