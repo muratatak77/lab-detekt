@@ -21,10 +21,12 @@ interface ReportingExtension : Extension {
     /**
      * Additional data to publish in [Detektion.userData]. Is called after all extensions's [transformIssues] were
      * called, so that the data can be based on the outcome of the transformation.
+     *
+     * Unlike [FileProcessListener.onFinish], a reporting extension does not return a whole [Detektion]: detekt builds
+     * the final result itself from the transformed issues, so an extension can only add entries here and can't replace
+     * the issues, rules or metrics of the result.
      */
     fun userData(): Map<String, Any> = emptyMap()
-
-    // Changed on the base while this PR was open (1793564197)
 
     /**
      * Is called after all extensions's [transformIssues] were called.

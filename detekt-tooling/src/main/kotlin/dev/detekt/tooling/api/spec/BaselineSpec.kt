@@ -20,6 +20,9 @@ interface BaselineSpec {
      * Should this analysis remove the entries of [path] which no longer match any finding.
      *
      * Has no effect if [shouldCreateDuringAnalysis] is set as the baseline is replaced as a whole in that case.
+     *
+     * Defaults to `false` so that existing implementations of this interface keep compiling.
      */
     val shouldPruneStaleEntries: Boolean
+        get() = false
 }

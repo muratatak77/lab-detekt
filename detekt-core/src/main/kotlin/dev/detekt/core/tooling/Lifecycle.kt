@@ -51,12 +51,16 @@ internal class Lifecycle(
         }
 
         val activeRules = rules.filter { it.ruleInstance.active }
-        settings.register(
-            DETEKT_BASELINE_ANALYZED_FILES_KEY,
-            activeRules.analyzedFileNames(filesToAnalyze, settings.spec.projectSpec.basePath),
-        )
 
         val result = measure(Phase.Analyzer) {
+            val baselineSpec = settings.spec.baselineSpec
+            // Only the stale entry check of an existing baseline needs to know which files each rule looked at.
+            if (baselineSpec.path != null && !baselineSpec.shouldCreateDuringAnalysis) {
+                settings.register(
+                    DETEKT_BASELINE_ANALYZED_FILES_KEY,
+                    activeRules.analyzedFileNames(filesToAnalyze, settings.spec.projectSpec.basePath),
+                )
+            }
             val analyzer = Analyzer(settings, activeRules, processors, analysisMode)
             processors.forEach { it.onStart(filesToAnalyze) }
             val issues = analyzer.run(filesToAnalyze)

@@ -96,7 +96,7 @@ public final class dev/detekt/tooling/api/VersionProvider$Companion {
 public abstract interface class dev/detekt/tooling/api/spec/BaselineSpec {
 	public abstract fun getPath ()Ljava/nio/file/Path;
 	public abstract fun getShouldCreateDuringAnalysis ()Z
-	public abstract fun getShouldPruneStaleEntries ()Z
+	public fun getShouldPruneStaleEntries ()Z
 }
 
 public abstract interface class dev/detekt/tooling/api/spec/CompilerSpec {

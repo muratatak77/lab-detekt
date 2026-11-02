@@ -107,9 +107,7 @@ class CliArgs {
 
     @Parameter(
         names = ["--prune-baseline", "-pb"],
-        description = "Removes the entries from the baseline file which no longer match any finding. " +
-            "Entries of rules which did not run are kept, and so are entries of files which were not analyzed, " +
-            "unless an analyzed file has the same simple name. Only prune from a run covering all baseline files."
+        description = "Removes baseline entries that no longer match any finding; prune only from a full run."
     )
     var pruneBaseline: Boolean = false
 
