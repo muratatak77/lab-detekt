@@ -32,6 +32,9 @@ class BaselineResultMapping : ReportingExtension {
         analyzedFiles = context.getOrNull(DETEKT_BASELINE_ANALYZED_FILES_KEY)
     }
 
+    /**
+     * Keeps the unfiltered [result] to find stale baseline entries later. Returns nothing.
+     */
     override fun onRawResult(result: Detektion) {
         // Other extensions may filter issues before us, only the raw result tells which entries are really unused.
         rawResult = result
@@ -64,6 +67,10 @@ class BaselineResultMapping : ReportingExtension {
         return filterByBaseline(remaining, this)
     }
 
+    /**
+     * Returns the stale baseline entries found by [transformIssues] under [STALE_BASELINE_ENTRIES_KEY], or an empty map
+     * when there are none.
+     */
     override fun userData(): Map<String, Any> =
         if (staleEntries.isEmpty()) {
             emptyMap()
@@ -95,6 +102,9 @@ class BaselineResultMapping : ReportingExtension {
         }
     }
 
+    /**
+     * Returns the [issues] whose baseline id is not in [baseline], keeping their order.
+     */
     fun filterByBaseline(baseline: Baseline, issues: List<Issue>): List<Issue> =
         issues.filterNot { baseline.contains(it.baselineId) }
 

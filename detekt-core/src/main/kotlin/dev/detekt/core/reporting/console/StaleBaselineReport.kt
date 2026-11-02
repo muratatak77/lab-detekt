@@ -17,6 +17,9 @@ class StaleBaselineReport : ConsoleReport {
      */
     override val priority: Int = Int.MIN_VALUE + 2
 
+    /**
+     * Returns a headline followed by one line per stale baseline entry of [detektion], or `null` when there are none.
+     */
     override fun render(detektion: Detektion): String? {
         val stale = detektion.staleBaselineEntries
         if (stale.ids.isEmpty()) {
