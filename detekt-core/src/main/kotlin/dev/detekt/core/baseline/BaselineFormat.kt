@@ -54,6 +54,17 @@ internal class BaselineFormat : BaselineProvider {
         }
     }
 
+    /**
+     * Rewrites the baseline file at [path] in the current format and returns the baseline it holds.
+     */
+    fun upgrade(path: Path): DefaultBaseline {
+        val baseline = read(path)
+        path.bufferedWriter().addFinalNewLine().use {
+            it.streamXml().prettyPrinter().save(baseline)
+        }
+        return baseline
+    }
+
     private fun XMLStreamWriter.save(baseline: Baseline) {
         document {
             tag(SMELL_BASELINE) {
