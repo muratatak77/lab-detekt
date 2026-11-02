@@ -12,7 +12,6 @@ import dev.detekt.api.Severity
 import dev.detekt.api.internal.whichDetekt
 import dev.detekt.api.valueOrDefault
 import dev.detekt.core.suppressors.isSuppressedBy
-import dev.detekt.core.util.shouldAnalyzeFile
 import dev.detekt.suppressors.buildSuppressors
 import dev.detekt.tooling.api.AnalysisMode
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -61,12 +60,7 @@ internal class Analyzer(
 
     private fun analyze(file: KtFile, languageVersionSettings: LanguageVersionSettings): List<Issue> {
         val (correctableRules, otherRules) = rules.asSequence()
-            .filter { ruleDescriptor ->
-                ruleDescriptor.config.parent?.shouldAnalyzeFile(file, settings.spec.projectSpec.basePath) != false
-            }
-            .filter { ruleDescriptor ->
-                ruleDescriptor.config.shouldAnalyzeFile(file, settings.spec.projectSpec.basePath)
-            }
+            .filter { ruleDescriptor -> ruleDescriptor.shouldAnalyzeFile(file, settings.spec.projectSpec.basePath) }
             .map { ruleDescriptor ->
                 ruleDescriptor.ruleInstance to ruleDescriptor.ruleProvider(ruleDescriptor.config)
             }

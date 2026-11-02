@@ -28,6 +28,8 @@ internal data class DefaultBaseline(
 
 const val DETEKT_BASELINE_PATH_KEY = "detekt.baseline.path.key"
 const val DETEKT_BASELINE_CREATION_KEY = "detekt.baseline.creation.key"
+const val DETEKT_BASELINE_PRUNE_KEY = "detekt.baseline.prune.key"
+const val DETEKT_BASELINE_ANALYZED_FILES_KEY = "detekt.baseline.analyzed.files.key"
 
 internal const val SMELL_BASELINE = "SmellBaseline"
 internal const val MANUALLY_SUPPRESSED_ISSUES = "ManuallySuppressedIssues"
@@ -36,3 +38,13 @@ internal const val ID = "ID"
 
 internal val Issue.baselineId: String
     get() = "${ruleInstance.id}:${this.location.path.name}:${this.entity.signature}"
+
+/** The id of the rule which reported the issue. See [baselineId] for the layout of the id. */
+internal val FindingId.ruleId: String
+    get() = substringBefore(BASELINE_ID_SEPARATOR)
+
+/** The name of the file the issue was reported in. See [baselineId] for the layout of the id. */
+internal val FindingId.fileName: String
+    get() = substringAfter(BASELINE_ID_SEPARATOR).substringBefore(BASELINE_ID_SEPARATOR)
+
+private const val BASELINE_ID_SEPARATOR = ':'

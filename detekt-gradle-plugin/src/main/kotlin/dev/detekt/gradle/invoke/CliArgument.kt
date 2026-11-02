@@ -21,6 +21,7 @@ private const val ALL_RULES_PARAMETER = "--all-rules"
 private const val REPORT_PARAMETER = "--report"
 private const val GENERATE_CONFIG_PARAMETER = "--generate-config"
 private const val CREATE_BASELINE_PARAMETER = "--create-baseline"
+private const val PRUNE_BASELINE_PARAMETER = "--prune-baseline"
 private const val CLASSPATH_PARAMETER = "--classpath"
 private const val API_VERSION_PARAMETER = "--api-version"
 private const val LANGUAGE_VERSION_PARAMETER = "--language-version"
@@ -159,6 +160,9 @@ internal data class BuildUponDefaultConfigArgument(override val value: Boolean) 
     BoolCliArgument(value, BUILD_UPON_DEFAULT_CONFIG_PARAMETER)
 
 internal data class AllRulesArgument(override val value: Boolean) : BoolCliArgument(value, ALL_RULES_PARAMETER)
+
+internal data class PruneBaselineArgument(override val value: Boolean) :
+    BoolCliArgument(value, PRUNE_BASELINE_PARAMETER)
 
 internal data class AutoCorrectArgument(override val value: Boolean) : BoolCliArgument(value, AUTO_CORRECT_PARAMETER)
 

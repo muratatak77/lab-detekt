@@ -1,9 +1,13 @@
 package dev.detekt.core.baseline
 
+import dev.detekt.api.Issue
+import dev.detekt.api.STALE_BASELINE_ENTRIES_KEY
+import dev.detekt.api.StaleBaselineEntries
 import dev.detekt.api.testfixtures.TestSetupContext
 import dev.detekt.api.testfixtures.createIssue
 import dev.detekt.api.testfixtures.createIssueEntity
 import dev.detekt.api.testfixtures.createRuleInstance
+import dev.detekt.test.TestDetektion
 import dev.detekt.test.utils.resourceAsPath
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -11,6 +15,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.io.path.copyTo
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 class BaselineResultMappingSpec {
     @TempDir
@@ -130,7 +136,7 @@ class BaselineResultMappingSpec {
             createBaseline = true,
         )
 
-        val filtered = mapping.filterByBaseline(baselineFile, issues)
+        val filtered = mapping.filterByBaseline(DefaultBaseline.load(baselineFile), issues)
 
         assertThat(filtered).isNotEqualTo(issues)
     }
@@ -142,7 +148,7 @@ class BaselineResultMappingSpec {
             createBaseline = false,
         )
 
-        val filtered = mapping.filterByBaseline(baselineFile, issues)
+        val filtered = mapping.transformIssues(issues)
 
         assertThat(filtered).isEqualTo(issues)
     }
@@ -210,14 +216,199 @@ class BaselineResultMappingSpec {
     }
 }
 
-private fun resultMapping(baselineFile: Path?, createBaseline: Boolean?) =
-    BaselineResultMapping().apply {
-        init(
-            TestSetupContext(
-                properties = mapOf(
-                    DETEKT_BASELINE_PATH_KEY to baselineFile,
-                    DETEKT_BASELINE_CREATION_KEY to createBaseline,
-                )
-            )
+class StaleBaselineEntriesSpec {
+    @TempDir
+    @Suppress("VarCouldBeVal")
+    private lateinit var dir: Path
+
+    private val fixedIssue = "RuleA:TestFile.kt:Fixed"
+    private val openIssue = "RuleA:TestFile.kt:Open"
+    private val manualIssue = "RuleA:TestFile.kt:Manual"
+    private val otherFileIssue = "RuleA:OtherFile.kt:Fixed"
+    private val otherRuleIssue = "RuleB:TestFile.kt:Fixed"
+
+    private val ruleA = createRuleInstance("RuleA", "RuleSet")
+    private val ruleB = createRuleInstance("RuleB", "RuleSet", active = false)
+    private val open = createIssue(ruleInstance = ruleA, entity = createIssueEntity(signature = "Open"))
+
+    private fun baselineWith(vararg current: String): Path =
+        dir.resolve("baseline.xml").also {
+            BaselineFormat().write(it, DefaultBaseline(setOf(manualIssue), current.toSet()))
+        }
+
+    private fun BaselineResultMapping.run(issues: List<Issue>): List<Issue> {
+        onRawResult(TestDetektion(*issues.toTypedArray(), rules = listOf(ruleA, ruleB)))
+        return transformIssues(issues)
+    }
+
+    private fun BaselineResultMapping.staleEntries() = userData()[STALE_BASELINE_ENTRIES_KEY] as StaleBaselineEntries?
+
+    @Test
+    fun `reports the entries which no longer match an issue`() {
+        val mapping = staleMapping(baselineWith(fixedIssue, openIssue))
+
+        val issues = mapping.run(listOf(open))
+
+        assertThat(issues).isEmpty()
+        assertThat(mapping.staleEntries()).isEqualTo(StaleBaselineEntries(setOf(fixedIssue), pruned = false))
+    }
+
+    @Test
+    fun `sorts the reported entries`() {
+        val mapping = staleMapping(baselineWith("RuleA:TestFile.kt:Z", "RuleA:TestFile.kt:B", "RuleA:TestFile.kt:M"))
+
+        mapping.run(emptyList())
+
+        assertThat(mapping.staleEntries()?.ids).containsExactly(
+            "RuleA:TestFile.kt:B",
+            "RuleA:TestFile.kt:M",
+            "RuleA:TestFile.kt:Z",
         )
     }
+
+    @Test
+    fun `publishes nothing if all entries are in use`() {
+        val mapping = staleMapping(baselineWith(openIssue))
+
+        mapping.run(listOf(open))
+
+        assertThat(mapping.userData()).isEmpty()
+    }
+
+    @Test
+    fun `does not consider an entry stale when its issue was filtered by an earlier extension`() {
+        val mapping = staleMapping(baselineWith(openIssue))
+
+        mapping.onRawResult(TestDetektion(open, rules = listOf(ruleA, ruleB)))
+        mapping.transformIssues(emptyList())
+
+        assertThat(mapping.userData()).isEmpty()
+    }
+
+    @Test
+    fun `keeps entries of rules which did not run`() {
+        val mapping = staleMapping(baselineWith(otherRuleIssue, "UnknownRule:TestFile.kt:Fixed"))
+
+        mapping.run(emptyList())
+
+        assertThat(mapping.userData()).isEmpty()
+    }
+
+    @Test
+    fun `keeps entries of files which were not analyzed`() {
+        val mapping = staleMapping(baselineWith(otherFileIssue, fixedIssue))
+
+        mapping.run(emptyList())
+
+        assertThat(mapping.staleEntries()?.ids).containsExactly(fixedIssue)
+    }
+
+    @Test
+    fun `keeps entries of files the rule skipped through its path filters`() {
+        val baselineFile = baselineWith(otherFileIssue, fixedIssue)
+        val mapping = resultMapping(
+            baselineFile = baselineFile,
+            createBaseline = false,
+            pruneBaseline = true,
+            analyzedFiles = mapOf("RuleA" to setOf("TestFile.kt"), "RuleC" to setOf("OtherFile.kt")),
+        )
+
+        mapping.run(emptyList())
+
+        assertThat(mapping.staleEntries()?.ids).containsExactly(fixedIssue)
+        assertThat(DefaultBaseline.load(baselineFile).currentIssues).containsExactly(otherFileIssue)
+    }
+
+    @Test
+    fun `can't tell an entry of a not analyzed file from an analyzed file of the same name`() {
+        // The id could belong to any TestFile.kt: it holds the simple file name only, see baseline.mdx.
+        val baselineFile = baselineWith(fixedIssue)
+        val mapping = staleMapping(baselineFile, prune = true)
+
+        mapping.run(emptyList())
+
+        assertThat(mapping.staleEntries()?.ids).containsExactly(fixedIssue)
+        assertThat(DefaultBaseline.load(baselineFile).currentIssues).isEmpty()
+    }
+
+    @Test
+    fun `leaves the baseline file untouched without the prune option`() {
+        val baselineFile = baselineWith(fixedIssue)
+        val before = baselineFile.readText()
+
+        staleMapping(baselineFile).run(emptyList())
+
+        assertThat(baselineFile).hasContent(before)
+    }
+
+    @Test
+    fun `prunes only the stale entries`() {
+        val baselineFile = baselineWith(fixedIssue, openIssue, otherFileIssue)
+        val mapping = staleMapping(baselineFile, prune = true)
+
+        val issues = mapping.run(listOf(open))
+
+        assertThat(issues).isEmpty()
+        assertThat(mapping.staleEntries()).isEqualTo(StaleBaselineEntries(setOf(fixedIssue), pruned = true))
+        assertThat(DefaultBaseline.load(baselineFile)).isEqualTo(
+            DefaultBaseline(setOf(manualIssue), setOf(openIssue, otherFileIssue))
+        )
+    }
+
+    @Test
+    fun `does not rewrite the baseline file if there is nothing to prune`() {
+        val baselineFile = dir.resolve("baseline.xml").apply {
+            writeText(
+                """
+                    <?xml version="1.0" ?>
+                    <!-- hand-formatted, keep the reviewers happy -->
+                    <SmellBaseline>
+                        <ManuallySuppressedIssues/>
+                        <CurrentIssues><ID>$openIssue</ID></CurrentIssues>
+                    </SmellBaseline>
+                """.trimIndent()
+            )
+        }
+        val before = baselineFile.readText()
+
+        staleMapping(baselineFile, prune = true).run(listOf(open))
+
+        assertThat(baselineFile).hasContent(before)
+    }
+
+    @Test
+    fun `does not look for stale entries while creating a baseline`() {
+        val baselineFile = baselineWith(fixedIssue)
+        val mapping = resultMapping(baselineFile, createBaseline = true)
+
+        mapping.run(listOf(open))
+
+        assertThat(mapping.userData()).isEmpty()
+    }
+
+    private fun staleMapping(baselineFile: Path, prune: Boolean = false) =
+        resultMapping(
+            baselineFile = baselineFile,
+            createBaseline = false,
+            pruneBaseline = prune,
+            analyzedFiles = mapOf("RuleA" to setOf("TestFile.kt")),
+        )
+}
+
+private fun resultMapping(
+    baselineFile: Path?,
+    createBaseline: Boolean?,
+    pruneBaseline: Boolean? = null,
+    analyzedFiles: Map<String, Set<String>>? = null,
+) = BaselineResultMapping().apply {
+    init(
+        TestSetupContext(
+            properties = mapOf(
+                DETEKT_BASELINE_PATH_KEY to baselineFile,
+                DETEKT_BASELINE_CREATION_KEY to createBaseline,
+                DETEKT_BASELINE_PRUNE_KEY to pruneBaseline,
+                DETEKT_BASELINE_ANALYZED_FILES_KEY to analyzedFiles,
+            )
+        )
+    )
+}

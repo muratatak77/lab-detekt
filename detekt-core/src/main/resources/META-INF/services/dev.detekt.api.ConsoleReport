@@ -2,3 +2,4 @@ dev.detekt.core.reporting.console.IssuesReport
 dev.detekt.core.reporting.console.FileBasedIssuesReport
 dev.detekt.core.reporting.console.LiteIssuesReport
 dev.detekt.core.reporting.console.NotificationReport
+dev.detekt.core.reporting.console.StaleBaselineReport

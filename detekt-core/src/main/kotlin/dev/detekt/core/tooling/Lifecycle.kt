@@ -7,6 +7,8 @@ import dev.detekt.api.RuleSetProvider
 import dev.detekt.core.Analyzer
 import dev.detekt.core.FileProcessorLocator
 import dev.detekt.core.ProcessingSettings
+import dev.detekt.core.analyzedFileNames
+import dev.detekt.core.baseline.DETEKT_BASELINE_ANALYZED_FILES_KEY
 import dev.detekt.core.config.validation.checkConfiguration
 import dev.detekt.core.extensions.handleReportingExtensions
 import dev.detekt.core.getRules
@@ -48,8 +50,18 @@ internal class Lifecycle(
             processorsProvider.invoke() to rules
         }
 
+        val activeRules = rules.filter { it.ruleInstance.active }
+
         val result = measure(Phase.Analyzer) {
-            val analyzer = Analyzer(settings, rules.filter { it.ruleInstance.active }, processors, analysisMode)
+            val baselineSpec = settings.spec.baselineSpec
+            // Only the stale entry check of an existing baseline needs to know which files each rule looked at.
+            if (baselineSpec.path != null && !baselineSpec.shouldCreateDuringAnalysis) {
+                settings.register(
+                    DETEKT_BASELINE_ANALYZED_FILES_KEY,
+                    activeRules.analyzedFileNames(filesToAnalyze, settings.spec.projectSpec.basePath),
+                )
+            }
+            val analyzer = Analyzer(settings, activeRules, processors, analysisMode)
             processors.forEach { it.onStart(filesToAnalyze) }
             val issues = analyzer.run(filesToAnalyze)
             val detektion = Detektion(issues, rules.map { it.ruleInstance })

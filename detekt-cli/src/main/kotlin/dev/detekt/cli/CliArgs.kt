@@ -106,6 +106,12 @@ class CliArgs {
     var createBaseline: Boolean = false
 
     @Parameter(
+        names = ["--prune-baseline", "-pb"],
+        description = "Removes baseline entries that no longer match any finding; prune only from a full run."
+    )
+    var pruneBaseline: Boolean = false
+
+    @Parameter(
         names = ["--report", "-r"],
         converter = ReportPathConverter::class,
         description = "Generates a report for given 'report-id' and stores it on given 'path'. " +

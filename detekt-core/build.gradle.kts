@@ -88,6 +88,7 @@ val generateDefaultDetektConfig = tasks.register("generateDefaultDetektConfig") 
                              - 'IssuesReport'
                              - 'FileBasedIssuesReport'
                           #  - 'LiteIssuesReport'
+                          #  - 'StaleBaselineReport'
                         
                     """.trimIndent()
                 )

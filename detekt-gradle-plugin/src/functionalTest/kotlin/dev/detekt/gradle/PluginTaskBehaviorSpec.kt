@@ -71,6 +71,29 @@ class PluginTaskBehaviorSpec {
     }
 
     @Test
+    fun `should not use the build cache when pruning the baseline`() {
+        val pruningRunner = kotlin()
+            .withDetektConfig(
+                """
+                    $detektConfig
+                    detekt {
+                        pruneBaseline = true
+                    }
+                """.trimIndent()
+            )
+            .withBaseline(baselineFileName)
+            .withConfigFile(configFileName)
+            .build()
+
+        pruningRunner.runDetektTaskAndCheckResult { result ->
+            assertThat(result.task(":detekt")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        }
+        pruningRunner.runTasksAndCheckResult("clean", "detekt") { result ->
+            assertThat(result.task(":detekt")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        }
+    }
+
+    @Test
     fun `should run again after changing config`() {
         @Language("yaml")
         val configFileWithCommentsDisabled = """

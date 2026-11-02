@@ -9,7 +9,8 @@ fun handleReportingExtensions(settings: ProcessingSettings, initialResult: Detek
     val extensions = loadExtensions<ReportingExtension>(settings)
     extensions.forEach { it.onRawResult(initialResult) }
     val finalIssues = extensions.fold(initialResult.issues) { acc, extension -> extension.transformIssues(acc) }
-    val finalResult = initialResult.copy(issues = finalIssues.sortedWith(issueComparator))
+    val finalUserData = extensions.fold(initialResult.userData) { acc, extension -> acc + extension.userData() }
+    val finalResult = initialResult.copy(issues = finalIssues.sortedWith(issueComparator), userData = finalUserData)
     extensions.forEach { it.onFinalResult(finalResult) }
     return finalResult
 }
@@ -22,7 +23,7 @@ private val issueComparator = compareBy<Issue>(
     { it.message },
 )
 
-private fun Detektion.copy(issues: List<Issue> = this.issues): Detektion =
+private fun Detektion.copy(issues: List<Issue>, userData: Map<String, Any>): Detektion =
     Detektion(
         issues = issues,
         rules = rules,

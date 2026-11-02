@@ -9,7 +9,9 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 class BaselineFormatSpec {
 
@@ -92,6 +94,36 @@ class BaselineFormatSpec {
             val loadedBaseline = format.read(tempFile)
 
             assertThat(loadedBaseline).isEqualTo(savedBaseline)
+        }
+
+        @Test
+        fun `replaces an existing baseline file and leaves no temporary file`(@TempDir tempDir: Path) {
+            val tempFile = tempDir.resolve("baseline.xml")
+            val format = BaselineFormat()
+            format.write(tempFile, DefaultBaseline(emptySet(), setOf("old")))
+
+            format.write(tempFile, savedBaseline)
+
+            assertThat(format.read(tempFile)).isEqualTo(savedBaseline)
+            assertThat(tempDir.listDirectoryEntries()).containsExactly(tempFile)
+        }
+
+        @Test
+        fun `keeps the existing baseline file when writing fails`(@TempDir tempDir: Path) {
+            val tempFile = tempDir.resolve("baseline.xml")
+            val original = "<SmellBaseline/>\n"
+            tempFile.writeText(original)
+            val failingIds = object : AbstractSet<String>() {
+                override val size = 1
+                override fun iterator(): Iterator<String> = error("write failure")
+            }
+
+            assertThatIllegalStateException()
+                .isThrownBy { BaselineFormat().write(tempFile, DefaultBaseline(emptySet(), failingIds)) }
+                .withMessage("write failure")
+
+            assertThat(tempFile.readText()).isEqualTo(original)
+            assertThat(tempDir.listDirectoryEntries()).containsExactly(tempFile)
         }
     }
 }

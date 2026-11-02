@@ -45,6 +45,7 @@ class DetektBasePlugin : Plugin<Project> {
             debug.convention(DEFAULT_DEBUG_VALUE)
             parallel.convention(DEFAULT_PARALLEL_VALUE)
             allRules.convention(DEFAULT_ALL_RULES_VALUE)
+            pruneBaseline.convention(DEFAULT_PRUNE_BASELINE_VALUE)
             buildUponDefaultConfig.convention(DEFAULT_BUILD_UPON_DEFAULT_CONFIG_VALUE)
             disableDefaultRuleSets.convention(DEFAULT_DISABLE_RULESETS_VALUE)
             autoCorrect.convention(DEFAULT_AUTO_CORRECT_VALUE)
@@ -162,6 +163,7 @@ class DetektBasePlugin : Plugin<Project> {
         private const val DEFAULT_AUTO_CORRECT_VALUE = false
         private const val DEFAULT_DISABLE_RULESETS_VALUE = false
         private const val DEFAULT_ALL_RULES_VALUE = false
+        private const val DEFAULT_PRUNE_BASELINE_VALUE = false
         private const val DEFAULT_BUILD_UPON_DEFAULT_CONFIG_VALUE = false
     }
 }

@@ -7,10 +7,13 @@ import dev.detekt.api.ProjectMetric
 import dev.detekt.api.RuleInstance
 import dev.detekt.api.SetupContext
 import dev.detekt.api.SourceLocation
+import dev.detekt.api.StaleBaselineEntries
 import dev.detekt.api.internal.whichDetekt
+import dev.detekt.api.staleBaselineEntries
 import dev.detekt.api.suppressed
 import dev.detekt.report.complexity.ComplexityReportGenerator
 import dev.detekt.utils.MarkdownContent
+import dev.detekt.utils.code
 import dev.detekt.utils.codeBlock
 import dev.detekt.utils.emptyLine
 import dev.detekt.utils.h1
@@ -57,6 +60,8 @@ class MarkdownOutputReport : OutputReport {
 
             renderIssues(detektion.issues.filterNot { it.suppressed }, basePath)
             emptyLine()
+
+            renderStaleBaseline(detektion.staleBaselineEntries)
 
             paragraph {
                 val detektLink = link("detekt version ${renderVersion()}", "$DETEKT_WEBSITE_BASE_URL/")
@@ -136,6 +141,18 @@ private fun MarkdownContent.renderIssues(issues: List<Issue>, basePath: Path) {
         .forEach { (_, groupIssues) ->
             renderGroup(groupIssues, basePath)
         }
+}
+
+private fun MarkdownContent.renderStaleBaseline(stale: StaleBaselineEntries) {
+    if (stale.ids.isEmpty()) return
+
+    h2 { "Stale Baseline Entries (%,d)".format(Locale.ROOT, stale.ids.size) }
+    paragraph { if (stale.pruned) "Removed from the baseline:" else "No longer match any finding:" }
+    list {
+        // The padding keeps the span closed for ids which start or end with a backtick.
+        stale.ids.forEach { item { code { " $it " } } }
+    }
+    emptyLine()
 }
 
 private fun MarkdownContent.renderIssue(issue: Issue, basePath: Path): String {

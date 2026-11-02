@@ -14,14 +14,29 @@ import dev.detekt.api.internal.DefaultRuleSetProvider
 import dev.detekt.api.internal.whichDetekt
 import dev.detekt.api.valueOrNull
 import dev.detekt.core.util.isActiveOrDefault
+import dev.detekt.core.util.shouldAnalyzeFile
 import dev.detekt.tooling.api.AnalysisMode
+import org.jetbrains.kotlin.psi.KtFile
 import java.net.URI
+import java.nio.file.Path
 
 internal data class RuleDescriptor(
     val ruleProvider: (Config) -> Rule,
     val config: Config,
     val ruleInstance: RuleInstance,
-)
+) {
+    fun shouldAnalyzeFile(file: KtFile, basePath: Path): Boolean =
+        config.parent?.shouldAnalyzeFile(file, basePath) != false && config.shouldAnalyzeFile(file, basePath)
+}
+
+/**
+ * The simple names of the [files] each rule looks at, which leaves out the files skipped by its path filters. These are
+ * the names baseline entries hold, so they tell which entries the analysis can judge.
+ */
+internal fun List<RuleDescriptor>.analyzedFileNames(files: List<KtFile>, basePath: Path): Map<String, Set<String>> =
+    associate { rule ->
+        rule.ruleInstance.id to files.filter { rule.shouldAnalyzeFile(it, basePath) }.mapTo(HashSet()) { it.name }
+    }
 
 internal fun getRules(
     analysisMode: AnalysisMode,

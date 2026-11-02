@@ -36,6 +36,7 @@ internal fun Project.setDetektTaskDefaults(extension: DetektExtension) {
         it.config.convention(provider { extension.config })
         it.basePath.convention(extension.basePath.map { basePath -> basePath.asFile.absolutePath })
         it.allRules.convention(extension.allRules)
+        it.pruneBaseline.convention(extension.pruneBaseline)
         it.noJdk.convention(false)
         it.multiPlatformEnabled.convention(false)
     }

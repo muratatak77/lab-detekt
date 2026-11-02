@@ -216,6 +216,7 @@ public abstract interface class dev/detekt/api/ReportingExtension : dev/detekt/a
 	public fun onFinalResult (Ldev/detekt/api/Detektion;)V
 	public fun onRawResult (Ldev/detekt/api/Detektion;)V
 	public fun transformIssues (Ljava/util/List;)Ljava/util/List;
+	public fun userData ()Ljava/util/Map;
 }
 
 public abstract interface class dev/detekt/api/RequiresAnalysisApi {
@@ -310,6 +311,20 @@ public final class dev/detekt/api/SourceLocation : java/lang/Comparable {
 	public final fun getLine ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/StaleBaselineEntries {
+	public fun <init> (Ljava/util/Set;Z)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIds ()Ljava/util/Set;
+	public final fun getPruned ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/detekt/api/StaleBaselineEntriesKt {
+	public static final field STALE_BASELINE_ENTRIES_KEY Ljava/lang/String;
+	public static final fun getStaleBaselineEntries (Ldev/detekt/api/Detektion;)Ldev/detekt/api/StaleBaselineEntries;
 }
 
 public final class dev/detekt/api/TextLocation {

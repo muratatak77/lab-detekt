@@ -45,6 +45,7 @@ internal fun CliArgs.createSpec(output: Appendable, error: Appendable): Processi
         baseline {
             path = args.baseline
             shouldCreateDuringAnalysis = args.createBaseline
+            shouldPruneStaleEntries = args.pruneBaseline
         }
 
         config {

@@ -295,6 +295,22 @@ internal class CliArgsSpec {
             }
 
             @Test
+            fun `reports an error when using --prune-baseline without a --baseline file`() {
+                assertThatCode { parseArguments(arrayOf("--prune-baseline")) }
+                    .isInstanceOf(HandledArgumentViolation::class.java)
+                    .hasMessage("Pruning a baseline.xml requires the --baseline parameter to specify a path.")
+            }
+
+            @Test
+            fun `reports an error when combining --prune-baseline with --create-baseline`() {
+                val args = arrayOf("--baseline", "baseline.xml", "--create-baseline", "--prune-baseline")
+
+                assertThatCode { parseArguments(args) }
+                    .isInstanceOf(HandledArgumentViolation::class.java)
+                    .hasMessage("--prune-baseline can't be combined with --create-baseline.")
+            }
+
+            @Test
             fun `reports an error when using --baseline file does not exist`() {
                 assertThatCode { parseArguments(arrayOf("--baseline", "nonExistent")) }
                     .isInstanceOf(HandledArgumentViolation::class.java)
@@ -638,6 +654,10 @@ private val expectedHelp = """
     |    --plugins, -p
     |      Extra paths to plugin jars separated by ':' on *nix or ';' on Windows.
     |      Default: []
+    |    --prune-baseline, -pb
+    |      Removes baseline entries that no longer match any finding; prune only 
+    |      from a full run.
+    |      Default: false
     |    --report, -r
     |      Generates a report for given 'report-id' and stores it on given 'path'. 
     |      Entry should consist of: [report-id:path]. Available 'report-id' values: 

@@ -7,8 +7,10 @@ import dev.detekt.api.ProjectMetric
 import dev.detekt.api.RuleInstance
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.SetupContext
+import dev.detekt.api.StaleBaselineEntries
 import dev.detekt.api.TextLocation
 import dev.detekt.api.internal.whichDetekt
+import dev.detekt.api.staleBaselineEntries
 import dev.detekt.api.suppressed
 import dev.detekt.report.complexity.ComplexityReportGenerator
 import dev.detekt.utils.openSafeStream
@@ -19,8 +21,10 @@ import kotlinx.html.HTMLTag
 import kotlinx.html.TagConsumer
 import kotlinx.html.a
 import kotlinx.html.attributesMapOf
+import kotlinx.html.code
 import kotlinx.html.details
 import kotlinx.html.div
+import kotlinx.html.h2
 import kotlinx.html.h3
 import kotlinx.html.id
 import kotlinx.html.li
@@ -38,6 +42,7 @@ import kotlin.io.path.invariantSeparatorsPathString
 private const val DEFAULT_TEMPLATE = "default-html-report-template.html"
 private const val PLACEHOLDER_METRICS = "@@@metrics@@@"
 private const val PLACEHOLDER_ISSUES = "@@@issues@@@"
+private const val PLACEHOLDER_STALE_BASELINE = "@@@stale-baseline@@@"
 private const val PLACEHOLDER_COMPLEXITY_REPORT = "@@@complexity@@@"
 private const val PLACEHOLDER_VERSION = "@@@version@@@"
 private const val PLACEHOLDER_DATE = "@@@date@@@"
@@ -64,6 +69,7 @@ class HtmlOutputReport : OutputReport {
             .replace(PLACEHOLDER_METRICS, renderMetrics(detektion.metrics))
             .replace(PLACEHOLDER_COMPLEXITY_REPORT, renderComplexity(getComplexityMetrics(detektion)))
             .replace(PLACEHOLDER_ISSUES, renderIssues(detektion.issues.filterNot { it.suppressed }))
+            .replace(PLACEHOLDER_STALE_BASELINE, renderStaleBaseline(detektion.staleBaselineEntries))
 
     private fun renderVersion(): String = whichDetekt()
 
@@ -176,6 +182,23 @@ class HtmlOutputReport : OutputReport {
         } catch (_: NoClassDefFoundError) {
             emptyList()
         }
+}
+
+private fun renderStaleBaseline(stale: StaleBaselineEntries): String {
+    if (stale.ids.isEmpty()) return ""
+
+    return createHTML().div {
+        h2 { text("Stale Baseline Entries") }
+
+        text(if (stale.pruned) "Removed from the baseline: " else "No longer match any finding: ")
+        text("%,d".format(Locale.ROOT, stale.ids.size))
+
+        ul {
+            stale.ids.forEach {
+                li { code { text(it) } }
+            }
+        }
+    }
 }
 
 private fun FlowOrInteractiveContent.summary(classes: String, block: SUMMARY.() -> Unit = {}): Unit =

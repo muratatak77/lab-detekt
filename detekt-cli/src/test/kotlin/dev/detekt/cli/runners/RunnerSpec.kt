@@ -16,6 +16,8 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.PrintStream
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 class RunnerSpec {
 
@@ -35,6 +37,42 @@ class RunnerSpec {
         )
 
         assertThat(baseline).content().contains("<SmellBaseline>")
+    }
+
+    @Test
+    fun `prunes the stale entries of a baseline`(@TempDir tempDir: Path) {
+        val baseline = tempDir.resolve("baseline.xml")
+        executeDetekt(
+            "--input",
+            inputPath.toString(),
+            "--config-resource",
+            "/configs/valid-config.yml",
+            "--baseline",
+            baseline.toString(),
+            "--create-baseline",
+        )
+        val currentEntry = baseline.readText().substringAfter("<CurrentIssues>").substringBefore("</CurrentIssues>")
+        val ruleId = currentEntry.substringAfter("<ID>").substringBefore(":")
+        val staleEntry = "<ID>$ruleId:Poko.kt:signature which no longer exists</ID>"
+        val unrelatedEntry = "<ID>$ruleId:OtherFile.kt:signature of a file which was not analyzed</ID>"
+        baseline.writeText(
+            baseline.readText().replace("</CurrentIssues>", "$staleEntry$unrelatedEntry</CurrentIssues>")
+        )
+        val out = StringPrintStream()
+
+        executeDetekt(
+            "--input",
+            inputPath.toString(),
+            "--config-resource",
+            "/configs/valid-config.yml",
+            "--baseline",
+            baseline.toString(),
+            "--prune-baseline",
+            out = out,
+        )
+
+        assertThat(out.toString()).contains("Removed 1 stale entry from the baseline:")
+        assertThat(baseline.readText()).doesNotContain(staleEntry).contains(unrelatedEntry, currentEntry.trim())
     }
 
     @Nested

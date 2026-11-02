@@ -31,6 +31,7 @@ import dev.detekt.gradle.invoke.MultiPlatformEnabledArgument
 import dev.detekt.gradle.invoke.NoJdkArgument
 import dev.detekt.gradle.invoke.OptInArguments
 import dev.detekt.gradle.invoke.ParallelArgument
+import dev.detekt.gradle.invoke.PruneBaselineArgument
 import dev.detekt.gradle.plugin.isWorkerApiEnabled
 import org.gradle.api.Action
 import org.gradle.api.Incubating
@@ -122,6 +123,9 @@ abstract class Detekt @Inject constructor(
     abstract val allRules: Property<Boolean>
 
     @get:Input
+    abstract val pruneBaseline: Property<Boolean>
+
+    @get:Input
     abstract val optIn: ListProperty<String>
 
     @get:Input
@@ -167,7 +171,12 @@ abstract class Detekt @Inject constructor(
 
     init {
         group = LifecycleBasePlugin.VERIFICATION_GROUP
+        outputs.doNotCacheIf("Pruning rewrites the baseline file, a cache hit would skip that") { shouldPruneBaseline }
     }
+
+    // The `baseline` convention points to a file that may not exist, in which case no `--baseline` is passed either.
+    private val shouldPruneBaseline: Boolean
+        get() = pruneBaseline.get() && baseline.orNull?.asFile?.exists() == true
 
     @get:Internal
     internal val arguments
@@ -180,6 +189,7 @@ abstract class Detekt @Inject constructor(
             JdkHomeArgument(jdkHome),
             ConfigArgument(config),
             BaselineArgumentOrEmpty(baseline.orNull),
+            PruneBaselineArgument(shouldPruneBaseline),
             DefaultReportArgument(reports.checkstyle),
             DefaultReportArgument(reports.html),
             DefaultReportArgument(reports.sarif),

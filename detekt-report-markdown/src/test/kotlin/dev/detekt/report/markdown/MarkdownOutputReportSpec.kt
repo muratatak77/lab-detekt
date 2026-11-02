@@ -3,7 +3,9 @@ package dev.detekt.report.markdown
 import dev.detekt.api.Detektion
 import dev.detekt.api.Issue
 import dev.detekt.api.ProjectMetric
+import dev.detekt.api.STALE_BASELINE_ENTRIES_KEY
 import dev.detekt.api.Severity
+import dev.detekt.api.StaleBaselineEntries
 import dev.detekt.api.internal.whichDetekt
 import dev.detekt.api.testfixtures.TestSetupContext
 import dev.detekt.api.testfixtures.createIssue
@@ -29,6 +31,41 @@ class MarkdownOutputReportSpec {
     private val detektVersion = whichDetekt()
     private val result = markdownReport.render(detektion)
         .replace("""\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d UTC""".toRegex(), "2024-07-21 21:34:16 UTC")
+
+    @Test
+    fun `lists the stale baseline entries`() {
+        val ids = setOf("LongMethod:File.kt:foo", "TooManyFunctions:File.kt:Bar")
+        val stale = StaleBaselineEntries(ids, pruned = false)
+
+        val report = markdownReport.render(TestDetektion(userData = mapOf(STALE_BASELINE_ENTRIES_KEY to stale)))
+
+        assertThat(report).contains("## Stale Baseline Entries (2)")
+        assertThat(report).contains("No longer match any finding:")
+        assertThat(report).contains("* `` LongMethod:File.kt:foo ``", "* `` TooManyFunctions:File.kt:Bar ``")
+    }
+
+    @Test
+    fun `keeps backticks of stale baseline entries inside the code span`() {
+        val stale = StaleBaselineEntries(setOf("LongMethod:FileSpec.kt:FileSpec\$`some test`"), pruned = false)
+
+        val report = markdownReport.render(TestDetektion(userData = mapOf(STALE_BASELINE_ENTRIES_KEY to stale)))
+
+        assertThat(report).contains("* `` LongMethod:FileSpec.kt:FileSpec\$`some test` ``")
+    }
+
+    @Test
+    fun `tells when the stale baseline entries were removed`() {
+        val stale = StaleBaselineEntries(setOf("LongMethod:File.kt:foo"), pruned = true)
+
+        val report = markdownReport.render(TestDetektion(userData = mapOf(STALE_BASELINE_ENTRIES_KEY to stale)))
+
+        assertThat(report).contains("Removed from the baseline:")
+    }
+
+    @Test
+    fun `omits the stale baseline section if there are no stale entries`() {
+        assertThat(result).doesNotContain("Stale Baseline Entries")
+    }
 
     @Suppress("LongMethod")
     @Test

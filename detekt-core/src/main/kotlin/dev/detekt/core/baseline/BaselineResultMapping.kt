@@ -1,9 +1,14 @@
 package dev.detekt.core.baseline
 
+import dev.detekt.api.Detektion
 import dev.detekt.api.Issue
 import dev.detekt.api.ReportingExtension
+import dev.detekt.api.STALE_BASELINE_ENTRIES_KEY
 import dev.detekt.api.SetupContext
+import dev.detekt.api.StaleBaselineEntries
 import dev.detekt.api.getOrNull
+import dev.detekt.tooling.api.Baseline
+import dev.detekt.tooling.api.FindingId
 import java.nio.file.Path
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.exists
@@ -13,12 +18,26 @@ class BaselineResultMapping : ReportingExtension {
 
     private var baselineFile: Path? = null
     private var createBaseline: Boolean = false
+    private var pruneBaseline: Boolean = false
+    private var analyzedFiles: Map<String, Set<String>>? = null
+    private var rawResult: Detektion? = null
+    private var staleEntries: Set<FindingId> = emptySet()
 
     override val id: String = "BaselineResultMapping"
 
     override fun init(context: SetupContext) {
         baselineFile = context.getOrNull(DETEKT_BASELINE_PATH_KEY)
         createBaseline = context.getOrNull(DETEKT_BASELINE_CREATION_KEY) ?: false
+        pruneBaseline = context.getOrNull(DETEKT_BASELINE_PRUNE_KEY) ?: false
+        analyzedFiles = context.getOrNull(DETEKT_BASELINE_ANALYZED_FILES_KEY)
+    }
+
+    /**
+     * Keeps the unfiltered [result] to find stale baseline entries later. Returns nothing.
+     */
+    override fun onRawResult(result: Detektion) {
+        // Other extensions may filter issues before us, only the raw result tells which entries are really unused.
+        rawResult = result
     }
 
     override fun transformIssues(issues: List<Issue>): List<Issue> {
@@ -34,17 +53,60 @@ class BaselineResultMapping : ReportingExtension {
         if (createBaseline) {
             createOrUpdate(baselinePath, this)
         }
+        if (!baselineExists(baselinePath)) {
+            return this
+        }
 
-        return filterByBaseline(baselinePath, this)
+        val baseline = DefaultBaseline.load(baselinePath)
+        val rawResult = rawResult
+        val remaining = if (createBaseline || rawResult == null) {
+            baseline
+        } else {
+            baseline.handleStaleEntries(baselinePath, rawResult)
+        }
+        return filterByBaseline(remaining, this)
     }
 
-    fun filterByBaseline(baselineFile: Path, issues: List<Issue>): List<Issue> =
-        if (baselineExists(baselineFile)) {
-            val baseline = DefaultBaseline.load(baselineFile)
-            issues.filterNot { baseline.contains(it.baselineId) }
+    /**
+     * Returns the stale baseline entries found by [transformIssues] under [STALE_BASELINE_ENTRIES_KEY], or an empty map
+     * when there are none.
+     */
+    override fun userData(): Map<String, Any> =
+        if (staleEntries.isEmpty()) {
+            emptyMap()
         } else {
-            issues
+            mapOf(STALE_BASELINE_ENTRIES_KEY to StaleBaselineEntries(staleEntries, pruned = pruneBaseline))
         }
+
+    private fun Baseline.handleStaleEntries(baselineFile: Path, result: Detektion): Baseline {
+        val stale = findStaleEntries(result)
+        staleEntries = stale
+        if (!pruneBaseline || stale.isEmpty()) {
+            return this
+        }
+
+        val baselineFormat = BaselineFormat()
+        val pruned = baselineFormat.of(manuallySuppressedIssues, currentIssues - stale)
+        baselineFormat.write(baselineFile, pruned)
+        return pruned
+    }
+
+    private fun Baseline.findStaleEntries(result: Detektion): Set<FindingId> {
+        val reportedIds = result.issues.mapTo(HashSet()) { it.baselineId }
+        val activeRuleIds = result.rules.filter { it.active }.mapTo(HashSet()) { it.id }
+        val analyzedFiles = analyzedFiles
+        return currentIssues.filterTo(sortedSetOf()) { id ->
+            id !in reportedIds &&
+                id.ruleId in activeRuleIds &&
+                (analyzedFiles == null || id.fileName in analyzedFiles[id.ruleId].orEmpty())
+        }
+    }
+
+    /**
+     * Returns the [issues] whose baseline id is not in [baseline], keeping their order.
+     */
+    fun filterByBaseline(baseline: Baseline, issues: List<Issue>): List<Issue> =
+        issues.filterNot { baseline.contains(it.baselineId) }
 
     fun createOrUpdate(baselineFile: Path, issues: List<Issue>) {
         val ids = issues.map { it.baselineId }.toSortedSet()
