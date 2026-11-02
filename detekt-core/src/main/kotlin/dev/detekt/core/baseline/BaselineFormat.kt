@@ -47,8 +47,22 @@ internal class BaselineFormat : BaselineProvider {
             }
         } catch (error: XMLStreamException) {
             val (line, column) = error.positions
-            throw InvalidState("Error on position $line:$column while writing the baseline xml file!", error)
+            throw InvalidState(
+                "Error on position $line:$column while writing the baseline xml file $targetPath!",
+                error,
+            )
         }
+    }
+
+    /**
+     * Rewrites the baseline file at [path] in the current format and returns the baseline it holds.
+     */
+    fun upgrade(path: Path): DefaultBaseline {
+        val baseline = read(path)
+        path.bufferedWriter().addFinalNewLine().use {
+            it.streamXml().prettyPrinter().save(baseline)
+        }
+        return baseline
     }
 
     private fun XMLStreamWriter.save(baseline: Baseline) {
