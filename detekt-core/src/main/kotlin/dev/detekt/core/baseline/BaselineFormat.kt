@@ -4,13 +4,21 @@ import dev.detekt.tooling.api.Baseline
 import dev.detekt.tooling.api.BaselineProvider
 import dev.detekt.tooling.api.FindingsIdList
 import org.xml.sax.SAXParseException
+import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.util.UUID
 import javax.xml.XMLConstants
 import javax.xml.parsers.SAXParserFactory
 import javax.xml.stream.XMLStreamException
 import javax.xml.stream.XMLStreamWriter
 import kotlin.io.path.bufferedWriter
+import kotlin.io.path.deleteIfExists
+import kotlin.io.path.exists
 import kotlin.io.path.inputStream
+import kotlin.io.path.moveTo
+import kotlin.io.path.name
 
 internal class BaselineFormat : BaselineProvider {
 
@@ -40,14 +48,33 @@ internal class BaselineFormat : BaselineProvider {
         }
     }
 
+    /**
+     * Writes [baseline] to a temporary file next to [targetPath] and then moves it over [targetPath], so a failure
+     * while writing leaves an existing baseline untouched. If [targetPath] is a symbolic link, its target is replaced.
+     */
     override fun write(targetPath: Path, baseline: Baseline) {
+        val target = if (targetPath.exists()) targetPath.toRealPath() else targetPath
+        val tempFile = target.resolveSibling(".${target.name}.${UUID.randomUUID()}.tmp")
         try {
-            targetPath.bufferedWriter().addFinalNewLine().use {
-                it.streamXml().prettyPrinter().save(baseline)
+            try {
+                tempFile.bufferedWriter(Charsets.UTF_8, DEFAULT_BUFFER_SIZE, StandardOpenOption.CREATE_NEW)
+                    .addFinalNewLine()
+                    .use { it.streamXml().prettyPrinter().save(baseline) }
+            } catch (error: XMLStreamException) {
+                val (line, column) = error.positions
+                throw InvalidState("Error on position $line:$column while writing the baseline xml file!", error)
             }
-        } catch (error: XMLStreamException) {
-            val (line, column) = error.positions
-            throw InvalidState("Error on position $line:$column while writing the baseline xml file!", error)
+            tempFile.replace(target)
+        } finally {
+            tempFile.deleteIfExists()
+        }
+    }
+
+    private fun Path.replace(target: Path) {
+        try {
+            moveTo(target, StandardCopyOption.ATOMIC_MOVE)
+        } catch (_: AtomicMoveNotSupportedException) {
+            moveTo(target, StandardCopyOption.REPLACE_EXISTING)
         }
     }
 
