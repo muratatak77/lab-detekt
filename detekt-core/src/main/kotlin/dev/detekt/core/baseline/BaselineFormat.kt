@@ -47,7 +47,7 @@ internal class BaselineFormat : BaselineProvider {
             }
         } catch (error: XMLStreamException) {
             val (line, column) = error.positions
-            throw InvalidState("Error on position $line:$column while writing the baseline xml file!", error)
+            throw InvalidState("Error on position $line:$column while writing the baseline xml file $targetPath!", error)
         }
     }
 
